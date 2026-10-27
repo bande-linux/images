@@ -9,11 +9,16 @@ troot=$WORK/test-root
 
 mkdir -p "$out"
 cp -a "$root" "$troot"
+trap 'umount -R "$troot/proc" "$troot/sys" "$troot/dev" 2>/dev/null || true' EXIT
 mount -t proc proc "$troot/proc"
-mount --rbind /dev "$troot/dev"
 mount -t sysfs sys "$troot/sys"
+mount --rbind /dev "$troot/dev"
+resolv=$(readlink "$troot/etc/resolv.conf" || true)
+rm -f "$troot/etc/resolv.conf"
 cp /etc/resolv.conf "$troot/etc/resolv.conf"
-chroot "$troot" sh -c 'apt-get update -qq && apt-get install -y --no-install-recommends linux-image-arm64'
+chroot "$troot" sh -c 'apt-get update -qq && apt-get install -y --no-install-recommends linux-image-arm64 && apt-get clean'
+rm -rf "$troot"/var/lib/apt/lists/*
+[ -n "$resolv" ] && ln -sf "$resolv" "$troot/etc/resolv.conf"
 cat > "$troot/etc/systemd/system/unbound-test.service" <<'EOT'
 [Unit]
 After=multi-user.target
@@ -28,7 +33,10 @@ ExecStart=/bin/sh -c 'echo "UNBOUND-TEST-FW: $(cat /lib/firmware/vendor/unbound-
 WantedBy=multi-user.target
 EOT
 chroot "$troot" systemctl enable unbound-test.service
-umount -R "$troot/proc" "$troot/dev" "$troot/sys"
+umount "$troot/proc"
+umount "$troot/sys"
+umount -R "$troot/dev"
+trap - EXIT
 
 version=$(ls "$troot/lib/modules" | grep -- -arm64)
 cp "$troot/boot/vmlinuz-$version" "$out/vmlinuz"
