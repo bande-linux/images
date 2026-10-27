@@ -1,0 +1,16 @@
+name: build
+
+on:
+  push:
+    branches: [ 'prep/**' ]
+  workflow_dispatch:
+    inputs:
+      kernel-ref:
+        type: string
+        default: prep/kernel-ci
+
+jobs:
+  kernel:
+    uses: unbound-linux/linux/.github/workflows/build.yml@prep/kernel-ci
+    with:
+      ref: ${{ inputs.kernel-ref || 'prep/kernel-ci' }}
