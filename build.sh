@@ -54,6 +54,7 @@ mmdebstrap --variant=minbase --arch=arm64 --mode=root --format=directory \
 
 mkdir -p "$work/pkg"
 mv "$root/boot/efi" "$work/pkg/esp"
+rm -f "$work/pkg/esp/loader/random-seed"
 mkdir "$root/boot/efi"
 
 mkroot() {
@@ -73,7 +74,7 @@ root_size=$(stat -c %s "$work/pkg/root.img")
 python3 "$here/installer-data.py" "$NAME" "$root_size" "$ESP_VOLUME_ID" > "$out/installer_data.json"
 
 if [ -n "$TEST_ROOT" ]; then
-    WORK=$work "$here/test-root.sh" "$root" "$work/pkg/esp" "$out"
+    WORK=$work ROOT_UUID=$ROOT_UUID ESP_VOLUME_ID=$ESP_VOLUME_ID "$here/test-root.sh" "$root" "$work/pkg/esp" "$out"
 fi
 
 ls -l "$out"
