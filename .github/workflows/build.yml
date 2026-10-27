@@ -8,9 +8,105 @@ on:
       kernel-ref:
         type: string
         default: prep/kernel-ci
+      boot-chain:
+        type: choice
+        options: [ uboot, direct ]
+        default: uboot
 
 jobs:
   kernel:
     uses: unbound-linux/linux/.github/workflows/build.yml@prep/kernel-ci
     with:
       ref: ${{ inputs.kernel-ref || 'prep/kernel-ci' }}
+
+  image:
+    needs: kernel
+    runs-on: [self-hosted, unbound]
+    timeout-minutes: 60
+
+    env:
+      HAVE_TOKEN: ${{ secrets.SUBMODULE_TOKEN != '' }}
+      BOOT_CHAIN: ${{ inputs.boot-chain || 'uboot' }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Require a token for the private repositories
+        if: env.HAVE_TOKEN != 'true'
+        run: |
+          echo "::warning::SUBMODULE_TOKEN is not set; system-scripts and the bootloader cannot be checked out, so no image is built."
+
+      - uses: actions/download-artifact@v7
+        if: env.HAVE_TOKEN == 'true'
+        with:
+          name: kernel
+          path: kernel
+
+      - uses: actions/checkout@v7
+        if: env.HAVE_TOKEN == 'true'
+        with:
+          repository: unbound-linux/system-scripts
+          ref: prep/debian
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+          path: system-scripts
+
+      - uses: actions/checkout@v7
+        if: env.HAVE_TOKEN == 'true'
+        with:
+          repository: unbound-linux/bootloader
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+          submodules: recursive
+          path: bootloader
+
+      - uses: actions/checkout@v7
+        if: env.HAVE_TOKEN == 'true'
+        with:
+          repository: unbound-linux/u-boot
+          ref: prep/unboot
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+          fetch-depth: 1
+          path: u-boot
+
+      - name: Build unbound-scripts, unboot and u-boot
+        if: env.HAVE_TOKEN == 'true'
+        run: |
+          mkdir -p debs
+          git -C system-scripts archive --prefix=src/ HEAD | docker run --rm -i debian:trixie sh -euc '
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends build-essential debhelper >/dev/null
+            tar -x -C /tmp && cd /tmp/src && dpkg-buildpackage -us -uc -b >&2
+            cd /tmp && tar -c *.deb' | tar -x -C debs
+          make -C bootloader -j8 ARCH= CHAINLOADING=1
+          python3 -m venv /tmp/uboot-venv
+          /tmp/uboot-venv/bin/pip install -q setuptools pyelftools
+          PATH=/tmp/uboot-venv/bin:$PATH make -C u-boot apple_m1_defconfig
+          PATH=/tmp/uboot-venv/bin:$PATH make -C u-boot -j8 CC="sccache gcc"
+
+      - name: Build the image
+        if: env.HAVE_TOKEN == 'true'
+        run: |
+          kdeb=$(ls kernel/linux-image-*.deb | grep -v -- -dbg_)
+          self=$(grep -o 'containers/[0-9a-f]\{64\}' /proc/self/mountinfo | head -1 | cut -d/ -f2)
+          docker run --rm --privileged --volumes-from "$self" -w "$PWD" \
+            -e BOOT_CHAIN -e TEST_ROOT=1 -e KDEB="$kdeb" \
+            -e SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) \
+            -e UNBOOT=bootloader/build/unboot.bin -e U_BOOT=u-boot/u-boot-nodtb.bin \
+            debian:trixie sh -euc '
+              apt-get update -qq
+              apt-get install -y -qq --no-install-recommends mmdebstrap e2fsprogs zip python3 \
+                dosfstools mtools fdisk cpio ca-certificates >/dev/null
+              ./build.sh "$KDEB" debs/unbound-scripts_*.deb out'
+
+      - name: Boot the root filesystem under QEMU/KVM
+        if: env.HAVE_TOKEN == 'true'
+        run: ./vm-test.sh out/test
+
+      - uses: actions/upload-artifact@v7
+        if: env.HAVE_TOKEN == 'true'
+        with:
+          name: os-image
+          path: |
+            out/*.zip
+            out/installer_data.json
