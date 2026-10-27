@@ -6,6 +6,7 @@ esp=$2
 out=$3/test
 troot=$WORK/test-root
 : "${ESP_PARTUUID:=6f1e2d3c-4b5a-4968-8776-5a4b3c2d1e0f}"
+: "${TEST_KERNEL:=unbound}"
 
 mkdir -p "$out"
 cp -a "$root" "$troot"
@@ -16,7 +17,9 @@ mount --rbind /dev "$troot/dev"
 resolv=$(readlink "$troot/etc/resolv.conf" || true)
 rm -f "$troot/etc/resolv.conf"
 cp /etc/resolv.conf "$troot/etc/resolv.conf"
-chroot "$troot" sh -c 'apt-get update -qq && apt-get install -y --no-install-recommends linux-image-arm64 && apt-get clean'
+if [ "$TEST_KERNEL" = debian ]; then
+    chroot "$troot" sh -c 'apt-get update -qq && apt-get install -y --no-install-recommends linux-image-arm64 && apt-get clean'
+fi
 rm -rf "$troot"/var/lib/apt/lists/*
 [ -n "$resolv" ] && ln -sf "$resolv" "$troot/etc/resolv.conf"
 cat > "$troot/etc/systemd/system/unbound-test.service" <<'EOT'
@@ -38,7 +41,11 @@ umount "$troot/sys"
 umount -R "$troot/dev"
 trap - EXIT
 
-version=$(ls "$troot/lib/modules" | grep -- -arm64)
+if [ "$TEST_KERNEL" = debian ]; then
+    version=$(ls "$troot/lib/modules" | grep -- '-arm64$')
+else
+    version=$(ls "$troot/lib/modules" | grep -v -- '-arm64$' | head -1)
+fi
 cp "$troot/boot/vmlinuz-$version" "$out/vmlinuz"
 cp "$troot/boot/initrd.img-$version" "$out/initrd.img"
 
