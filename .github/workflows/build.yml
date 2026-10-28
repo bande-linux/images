@@ -82,7 +82,7 @@ jobs:
           python3 -m venv /tmp/uboot-venv
           /tmp/uboot-venv/bin/pip install -q setuptools pyelftools
           PATH=/tmp/uboot-venv/bin:$PATH make -C u-boot apple_m1_defconfig
-          PATH=/tmp/uboot-venv/bin:$PATH make -C u-boot -j8 CC="sccache gcc"
+          PATH=/tmp/uboot-venv/bin:$PATH make -C u-boot -j8
 
       - name: Build the image
         if: env.HAVE_TOKEN == 'true'
