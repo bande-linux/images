@@ -22,7 +22,8 @@ else
     exit
 fi
 
-sudo -n "$home/usbc-debug/usbc-debug" reboot > "$logs/usbc.log" 2>&1
+sudo -n "$home/usbc-debug/usbc-debug" reboot > "$logs/usbc.log" 2>&1 ||
+    { echo "rebooting the mini failed, see $logs/usbc.log" >&2; exit 1; }
 for _ in $(seq 60); do ls /dev/cu.usbmodem* >/dev/null 2>&1 || break; sleep 1; done
 for _ in $(seq 120); do ls /dev/cu.usbmodem*1 >/dev/null 2>&1 && break; sleep 1; done
 proxy=$(ls /dev/cu.usbmodem*1 | head -1)
