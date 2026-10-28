@@ -29,7 +29,7 @@ chmod 755 p/payload/run
 kver=$(basename esp/debian/*)
 mkdir -p "$out/image"
 cp "esp/debian/$kver/initrd.img-$kver" "$out/image/initrd.img"
-cp "esp/debian/$kver/linux" "$out/image/vmlinuz"
+cp "esp/debian/$kver/linux" "$out/image/Image.gz"
 debugfs -R "dump /usr/lib/linux-image-$kver/apple/t8112-j473.dtb $out/image/t8112-j473.dtb" root.img >/dev/null 2>&1
 [ -s "$out/image/t8112-j473.dtb" ]
 rm -rf "$w"
