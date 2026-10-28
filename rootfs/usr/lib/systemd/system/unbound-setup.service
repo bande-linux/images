@@ -1,0 +1,13 @@
+[Unit]
+Description=Apply the settings given to the installer
+ConditionPathExists=/boot/efi/unbound/setup
+RequiresMountsFor=/boot/efi
+After=systemd-sysusers.service
+Before=NetworkManager.service ssh.service greetd.service systemd-user-sessions.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/unbound-setup
+
+[Install]
+WantedBy=multi-user.target

@@ -2,20 +2,21 @@
 set -eu
 
 usage() {
-    echo "Usage: $0 <linux-image.deb> <unbound-scripts.deb> <output dir>"
+    echo "Usage: $0 <linux-image.deb> <unbound-scripts.deb> <desktop .deb dir> <output dir>"
     exit 1
 }
 
-[ $# -eq 3 ] || usage
+[ $# -eq 4 ] || usage
 kernel_deb=$(realpath "$1")
 scripts_deb=$(realpath "$2")
-out=$(realpath "$3")
+desktop_debs=$(realpath "$3")
+out=$(realpath "$4")
 here=$(cd "$(dirname "$0")" && pwd)
 
 : "${SUITE:=trixie}"
 : "${MIRROR:=http://deb.debian.org/debian}"
 : "${BOOT_CHAIN:=uboot}"
-: "${NAME:=unbound-debian-13-server}"
+: "${NAME:=unbound-debian-13-desktop}"
 : "${ROOT_UUID:=8a0b3f4e-6c1d-4e55-9b0a-2d7f1c3e5a61}"
 : "${ESP_VOLUME_ID:=0x3c2e1a9b}"
 : "${UNBOOT:=}"
@@ -32,25 +33,30 @@ esac
 work=$(mktemp -d)
 trap 'umount -R "$work/root" 2>/dev/null || true; rm -rf "$work"' EXIT
 root=$work/root
-mkdir -p "$out" "$work/debs"
+mkdir -p "$out" "$work/debs" "$work/desktop"
 cp "$kernel_deb" "$scripts_deb" "$work/debs/"
+cp "$desktop_debs"/*.deb "$work/desktop/"
 [ -n "$UNBOOT" ] && cp "$UNBOOT" "$work/unboot.bin"
 [ -n "$U_BOOT" ] && cp "$U_BOOT" "$work/u-boot-nodtb.bin"
 
 esp_uuid=$(echo "$ESP_VOLUME_ID" | sed 's/^0x//' | tr a-f A-F | sed 's/^\(....\)/\1-/')
 
 packages="systemd-sysv,udev,dbus,kmod,initramfs-tools,busybox,cpio,zstd,e2fsprogs,dosfstools,
-openssh-server,systemd-resolved,iproute2,iputils-ping,ca-certificates,less,nano,sudo,apt-utils"
+openssh-server,systemd-resolved,iproute2,iputils-ping,ca-certificates,less,nano,sudo,apt-utils,
+network-manager,wpasupplicant,wireless-regdb,avahi-daemon,libnss-mdns,
+greetd,libpam-systemd,dbus-user-session,mesa-vulkan-drivers,libgbm1,vulkan-tools"
 [ "$BOOT_CHAIN" = uboot ] && packages="$packages,systemd-boot,systemd-boot-efi"
 
-env -u UNBOOT -u U_BOOT WORK=$work BOOT_CHAIN=$BOOT_CHAIN ROOT_UUID=$ROOT_UUID ESP_UUID=$esp_uuid \
+env -u UNBOOT -u U_BOOT WORK=$work ROOTFS=$here/rootfs BOOT_CHAIN=$BOOT_CHAIN ROOT_UUID=$ROOT_UUID ESP_UUID=$esp_uuid \
 mmdebstrap --variant=minbase --arch=arm64 --mode=root --format=directory \
     --components=main,non-free-firmware \
     --include="$(echo "$packages" | tr -d '\n')" \
+    --setup-hook="mkdir -p \"\$1/etc/apt/preferences.d\" && cp \"$here/rootfs/etc/apt/preferences.d/unbound-mesa\" \"\$1/etc/apt/preferences.d/\"" \
     --customize-hook="$here/customize.sh \"\$1\"" \
     "$SUITE" "$root" "deb $MIRROR $SUITE main non-free-firmware" \
     "deb $MIRROR $SUITE-updates main non-free-firmware" \
-    "deb http://security.debian.org/debian-security $SUITE-security main non-free-firmware"
+    "deb http://security.debian.org/debian-security $SUITE-security main non-free-firmware" \
+    "deb $MIRROR $SUITE-backports main"
 
 mkdir -p "$work/pkg"
 mv "$root/boot/efi" "$work/pkg/esp"

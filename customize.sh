@@ -8,15 +8,9 @@ cat > "$root/etc/fstab" <<EOT
 UUID=$ROOT_UUID / ext4 rw,errors=remount-ro,x-systemd.growfs 0 1
 UUID=$ESP_UUID /boot/efi vfat rw,umask=0077,nofail 0 2
 EOT
-mkdir -p "$root/etc/systemd/network"
-cat > "$root/etc/systemd/network/20-wired.network" <<'EOT'
-[Match]
-Name=en* eth*
-
-[Network]
-DHCP=yes
-EOT
-chroot "$root" systemctl enable systemd-networkd systemd-resolved
+cp -a --no-preserve=ownership "$ROOTFS/." "$root/"
+chroot "$root" systemctl enable NetworkManager systemd-resolved greetd unbound-setup
+chroot "$root" systemctl set-default graphical.target
 
 mkdir -p "$root/boot/efi/unboot" "$root/usr/lib/unboot" "$root/etc/kernel"
 touch "$root/boot/efi/.builder"
@@ -35,8 +29,11 @@ fi
 
 mkdir -p "$root/tmp/debs"
 cp "$WORK"/debs/*.deb "$root/tmp/debs/"
+mkdir -p "$root/tmp/desktop"
+cp "$WORK"/desktop/*.deb "$root/tmp/desktop/"
 SYSTEMD_RELAX_ESP_CHECKS=1 chroot "$root" sh -c 'apt-get install -y --no-install-recommends /tmp/debs/unbound-scripts_*.deb && apt-get install -y --no-install-recommends /tmp/debs/linux-image-*.deb'
-rm -rf "$root/tmp/debs"
+chroot "$root" sh -c 'apt-get install -y --no-install-recommends /tmp/desktop/*.deb'
+rm -rf "$root/tmp/debs" "$root/tmp/desktop"
 umount "$root/boot/efi"
 
 if [ "$BOOT_CHAIN" = direct ] && [ -e "$root/usr/lib/unboot/unboot.bin" ]; then

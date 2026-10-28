@@ -7,7 +7,10 @@ on:
     inputs:
       kernel-ref:
         type: string
-        default: prep/kernel-ci
+        default: unbound-hw/gfx-staging
+      desktop-run:
+        type: string
+        default: '40725756432'
       boot-chain:
         type: choice
         options: [ uboot, direct ]
@@ -15,9 +18,9 @@ on:
 
 jobs:
   kernel:
-    uses: unbound-linux/linux/.github/workflows/build.yml@prep/kernel-ci
+    uses: unbound-linux/linux/.github/workflows/build.yml@unbound-hw/ci-gfx
     with:
-      ref: ${{ inputs.kernel-ref || 'prep/kernel-ci' }}
+      ref: ${{ inputs.kernel-ref || 'unbound-hw/gfx-staging' }}
 
   image:
     needs: kernel
@@ -27,6 +30,7 @@ jobs:
     env:
       HAVE_TOKEN: ${{ secrets.SUBMODULE_TOKEN != '' }}
       BOOT_CHAIN: ${{ inputs.boot-chain || 'uboot' }}
+      DESKTOP_RUN: ${{ inputs.desktop-run || '40725756432' }}
 
     steps:
       - uses: actions/checkout@v7
@@ -43,6 +47,15 @@ jobs:
         with:
           name: kernel
           path: kernel
+
+      - uses: actions/download-artifact@v7
+        if: env.HAVE_TOKEN == 'true'
+        with:
+          name: unbound-debs
+          repository: unbound-linux/desktop
+          run-id: ${{ env.DESKTOP_RUN }}
+          github-token: ${{ secrets.SUBMODULE_TOKEN }}
+          path: desktop-debs
 
       - uses: actions/checkout@v7
         if: env.HAVE_TOKEN == 'true'
@@ -97,7 +110,7 @@ jobs:
               apt-get update -qq
               apt-get install -y -qq --no-install-recommends mmdebstrap e2fsprogs zip python3 \
                 dosfstools mtools fdisk cpio ca-certificates >/dev/null
-              ./build.sh "$KDEB" debs/unbound-scripts_*.deb out'
+              ./build.sh "$KDEB" debs/unbound-scripts_*.deb desktop-debs out'
 
       - name: Boot the root filesystem under QEMU/KVM
         if: env.HAVE_TOKEN == 'true'

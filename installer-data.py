@@ -5,12 +5,13 @@ name, root_size, volume_id = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 print(json.dumps({
     "os_list": [
         {
-            "name": "Debian 13 server (Mac mini M2, J473)",
+            "name": "Unbound Linux (Debian 13, Mac mini M2, J473)",
             "default_os_name": "Unbound Linux",
             "boot_object": "unboot.bin",
             "next_object": "unboot/boot.bin",
             "package": f"{name}.zip",
             "supported_fw": ["13.5"],
+            "setup": True,
             "partitions": [
                 {
                     "name": "EFI",

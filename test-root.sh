@@ -22,18 +22,39 @@ if [ "$TEST_KERNEL" = debian ]; then
 fi
 rm -rf "$troot"/var/lib/apt/lists/*
 [ -n "$resolv" ] && ln -sf "$resolv" "$troot/etc/resolv.conf"
+chroot "$troot" ssh-keygen -q -t ed25519 -N '' -C unbound-test -f /root/test-key
+echo vkms > "$troot/etc/modules-load.d/unbound-test.conf"
+cat > "$troot/usr/local/sbin/unbound-test" <<'EOT'
+#!/bin/sh
+for i in $(seq 90); do pgrep -u tester unbound-composi >/dev/null && break; sleep 1; done
+sleep 3
+line() { echo "UNBOUND-TEST-$1: $(sh -c "$2" 2>&1 | tr -s ' ' | tr '\n' ';')"; }
+line FW 'cat /lib/firmware/vendor/unbound-test.bin'
+line NET 'nmcli -t -f TYPE,STATE device'
+line USER 'id -nG tester'
+line SSH 'ssh -i /root/test-key -o BatchMode=yes -o StrictHostKeyChecking=no tester@127.0.0.1 echo key-login'
+line SSHD 'sshd -T | grep -E "^(passwordauthentication|kbdinteractiveauthentication|permitrootlogin) "'
+line WIFI 'nmcli -t -f NAME,TYPE connection show'
+line SETUP 'ls -A /boot/efi/unbound'
+line SESSION 'loginctl list-sessions --no-legend'
+line COMPOSITOR 'pgrep -u tester -a unbound-composi'
+line VULKAN 'vulkaninfo --summary | grep -E "deviceName|driverInfo"'
+line MESA 'dpkg-query -W -f "\${Version}" mesa-vulkan-drivers'
+echo UNBOUND-TEST-DONE
+EOT
+chmod 755 "$troot/usr/local/sbin/unbound-test"
 cat > "$troot/etc/systemd/system/unbound-test.service" <<'EOT'
 [Unit]
-After=multi-user.target
+After=graphical.target
 
 [Service]
 Type=oneshot
 StandardOutput=tty
 TTYPath=/dev/ttyAMA0
-ExecStart=/bin/sh -c 'echo "UNBOUND-TEST-FW: $(cat /lib/firmware/vendor/unbound-test.bin 2>&1)"; echo "UNBOUND-TEST-NET: $(networkctl list --no-legend 2>&1 | tr -s " " | tr "\\n" ";")"; echo UNBOUND-TEST-DONE'
+ExecStart=/usr/local/sbin/unbound-test
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target
 EOT
 chroot "$troot" systemctl enable unbound-test.service
 umount "$troot/proc"
@@ -55,12 +76,17 @@ mkfs.ext4 -q -L root -U "$ROOT_UUID" -d "$troot" "$WORK/test-root.img" "$((size 
 mkdir -p "$WORK/fw/vendorfw"
 echo unbound-test-firmware > "$WORK/fw/vendorfw/unbound-test.bin"
 echo "unbound-test.bin" > "$WORK/fw/vendorfw/.vendorfw.manifest"
-mkdir -p "$WORK/espfw/vendorfw"
+mkdir -p "$WORK/espfw/vendorfw" "$WORK/espfw/unbound/setup"
+printf tester > "$WORK/espfw/unbound/setup/user"
+printf 'test password' > "$WORK/espfw/unbound/setup/password"
+cp "$troot/root/test-key.pub" "$WORK/espfw/unbound/setup/authorized_keys"
+printf 'Unbound Test' > "$WORK/espfw/unbound/setup/wifi-ssid"
+printf 'unbound test passphrase' > "$WORK/espfw/unbound/setup/wifi-psk"
 (cd "$WORK/fw" && find vendorfw | cpio --quiet -o -H newc) > "$WORK/espfw/vendorfw/firmware.cpio"
 
 rm -f "$WORK/esp.img"
 mkfs.vfat -C -F 32 -i "$(echo "$ESP_VOLUME_ID" | sed 's/^0x//')" "$WORK/esp.img" $((512 * 1024)) >/dev/null
-mcopy -s -i "$WORK/esp.img" "$esp"/* "$WORK/espfw/vendorfw" ::/
+mcopy -s -i "$WORK/esp.img" "$esp"/* "$WORK/espfw/vendorfw" "$WORK/espfw/unbound" ::/
 
 esp_sectors=$(( $(stat -c %s "$WORK/esp.img") / 512 ))
 root_sectors=$(( $(stat -c %s "$WORK/test-root.img") / 512 ))
