@@ -1,0 +1,43 @@
+#!/bin/sh
+# Exposes CDC-NCM and CDC-ACM on every USB device controller; usbgadget= on the
+# kernel command line picks other functions, e.g. usbgadget=ecm or usbgadget=ncm.
+set -e
+modprobe -q libcomposite
+funcs=$(sed -n 's/.*usbgadget=\([^ ]*\).*/\1/p' /proc/cmdline | tr , ' ')
+funcs=${funcs:-ncm acm}
+mountpoint -q /sys/kernel/config || mount -t configfs configfs /sys/kernel/config
+serial=$(tr -d '\0' < /proc/device-tree/serial-number 2>/dev/null || echo unknown)
+i=0
+for udc in $(ls /sys/class/udc); do
+    g=/sys/kernel/config/usb_gadget/g$i
+    mkdir -p $g/strings/0x409 $g/configs/c.1/strings/0x409
+    echo 0x1d6b > $g/idVendor
+    echo 0x0104 > $g/idProduct
+    echo 0xef > $g/bDeviceClass
+    echo 0x02 > $g/bDeviceSubClass
+    echo 0x01 > $g/bDeviceProtocol
+    echo Unbound > $g/strings/0x409/manufacturer
+    echo "Mac mini" > $g/strings/0x409/product
+    echo "$serial-$i" > $g/strings/0x409/serialnumber
+    echo "$funcs" > $g/configs/c.1/strings/0x409/configuration
+    h=$(echo "$serial-$i" | md5sum | cut -c1-8 | sed 's/../&:/g')
+    for f in $funcs; do
+        modprobe -q usb_f_$f
+        mkdir $g/functions/$f.0
+        if [ -e $g/functions/$f.0/dev_addr ]; then
+            echo 02:${h}10 > $g/functions/$f.0/dev_addr
+            echo 02:${h}11 > $g/functions/$f.0/host_addr
+        fi
+        ln -s $g/functions/$f.0 $g/configs/c.1/
+    done
+    echo $udc > $g/UDC
+    ifname=$(cat $g/functions/*/ifname 2>/dev/null | head -1)
+    [ -n "$ifname" ] || { i=$((i + 1)); continue; }
+    ip addr add 10.84.$i.1/24 dev $ifname
+    ip link set $ifname up
+    printf 'interface %s\nstart 10.84.%s.10\nend 10.84.%s.20\nlease_file /tmp/udhcpd.%s.leases\noption subnet 255.255.255.0\n' \
+        $ifname $i $i $i > /tmp/udhcpd.$i.conf
+    touch /tmp/udhcpd.$i.leases
+    udhcpd /tmp/udhcpd.$i.conf
+    i=$((i + 1))
+done

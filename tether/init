@@ -1,0 +1,31 @@
+#!/bin/sh
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+mount -t proc proc /proc
+mount -t sysfs sys /sys
+mount -t devtmpfs dev /dev
+mkdir -p /dev/pts /run /tmp
+mount -t devpts devpts /dev/pts
+mdev -s
+n=-1
+while [ "$n" != "$(wc -l < /proc/modules)" ]; do
+    n=$(wc -l < /proc/modules)
+    find /sys/devices -name uevent -exec sed -n 's/^MODALIAS=//p' {} + 2>/dev/null | sort -u | xargs -n1 modprobe -q 2>/dev/null
+    sleep 1
+done
+mdev -s
+/usr/sbin/usb-gadget || echo UNBOUND-USB-GADGET-FAILED > /dev/kmsg
+if [ -x /payload/run ]; then
+    /payload/run > /tmp/tether.log 2>&1
+    cat /tmp/tether.log > /dev/kmsg
+fi
+mkdir -p /etc/dropbear
+dropbear -R -s -p 22
+echo UNBOUND-TETHER-READY > /dev/kmsg
+console() {
+    while true; do
+        [ -e /dev/$1 ] && setsid getty -n -l /bin/sh 115200 $1 vt100
+        sleep 1
+    done
+}
+console ttyGS0 &
+console hvc0
