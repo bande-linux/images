@@ -1,6 +1,7 @@
 #!/bin/sh
 # Runs in debian:trixie. $1: image zip, $2: vendor firmware cpio, $3: setup dir, $4: plan, $5: output dir.
-# Writes payload.cpio (the install payload) and the image's initrd and kernel for boot.sh.
+# Writes payload.cpio (the install payload) and, in image/, the kernel, initrd and device tree
+# that boot.sh boots, so the installed modules always match the kernel.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 zip=$(realpath "$1") fw=$(realpath "$2") setup=$(realpath "$3") plan=$(realpath "$4") out=$(realpath "$5")
@@ -25,6 +26,10 @@ cp "$plan" p/payload/plan
 cp "$here/run" p/payload/run
 chmod 755 p/payload/run
 (cd p && find . | cpio -o -H newc -R 0:0 --quiet) > "$out/payload.cpio"
-cp esp/debian/*/initrd.img-* "$out/initrd.img"
-cp esp/debian/*/linux "$out/vmlinuz"
+kver=$(basename esp/debian/*)
+mkdir -p "$out/image"
+cp "esp/debian/$kver/initrd.img-$kver" "$out/image/initrd.img"
+cp "esp/debian/$kver/linux" "$out/image/vmlinuz"
+debugfs -R "dump /usr/lib/linux-image-$kver/apple/t8112-j473.dtb $out/image/t8112-j473.dtb" root.img >/dev/null 2>&1
+[ -s "$out/image/t8112-j473.dtb" ]
 rm -rf "$w"

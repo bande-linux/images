@@ -16,7 +16,7 @@ if [ "$mode" = install ]; then
     src image.zip firmware.cpio setup plan | docker run --rm -i debian:trixie sh -euc '
         mkdir /w /o && cd /w && tar -x
         sh tether/payload.sh image.zip firmware.cpio setup plan /o >&2
-        cd /o && tar -c payload.cpio initrd.img vmlinuz' | tar -x -C "$state"
+        cd /o && tar -c payload.cpio image' | tar -x -C "$state"
 else
     stage=$(mktemp -d)
     mkdir "$stage/payload"
