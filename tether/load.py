@@ -13,5 +13,6 @@ def kboot_set_chosen(self, name, value):
 
 
 unboot.proxy.UNBOOTProxy.kboot_set_chosen = kboot_set_chosen
+unboot.proxy.UartInterface.ttymode = lambda self, dev=None: None
 sys.argv = ["linux.py"] + sys.argv[1:]
 runpy.run_path("tools/linux.py", run_name="__main__")
