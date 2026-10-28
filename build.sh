@@ -2,13 +2,13 @@
 set -eu
 
 usage() {
-    echo "Usage: $0 <linux-image.deb> <unbound-scripts.deb> <desktop .deb dir> <output dir>"
+    echo "Usage: $0 <linux-image.deb> <system-scripts .deb dir> <desktop .deb dir> <output dir>"
     exit 1
 }
 
 [ $# -eq 4 ] || usage
 kernel_deb=$(realpath "$1")
-scripts_deb=$(realpath "$2")
+scripts_debs=$(realpath "$2")
 desktop_debs=$(realpath "$3")
 out=$(realpath "$4")
 here=$(cd "$(dirname "$0")" && pwd)
@@ -34,7 +34,7 @@ work=$(mktemp -d)
 trap 'umount -R "$work/root" 2>/dev/null || true; rm -rf "$work"' EXIT
 root=$work/root
 mkdir -p "$out" "$work/debs" "$work/desktop"
-cp "$kernel_deb" "$scripts_deb" "$work/debs/"
+cp "$kernel_deb" "$scripts_debs"/unbound-scripts_*.deb "$scripts_debs"/unbound-usb-gadget_*.deb "$work/debs/"
 cp "$desktop_debs"/*.deb "$work/desktop/"
 [ -n "$UNBOOT" ] && cp "$UNBOOT" "$work/unboot.bin"
 [ -n "$U_BOOT" ] && cp "$U_BOOT" "$work/u-boot-nodtb.bin"

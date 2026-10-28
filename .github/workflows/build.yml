@@ -61,7 +61,7 @@ jobs:
         if: env.HAVE_TOKEN == 'true'
         with:
           repository: unbound-linux/system-scripts
-          ref: prep/debian
+          ref: prep/debian-usb-gadget
           token: ${{ secrets.SUBMODULE_TOKEN }}
           path: system-scripts
 
@@ -110,7 +110,7 @@ jobs:
               apt-get update -qq
               apt-get install -y -qq --no-install-recommends mmdebstrap e2fsprogs zip python3 \
                 dosfstools mtools fdisk cpio ca-certificates >/dev/null
-              ./build.sh "$KDEB" debs/unbound-scripts_*.deb desktop-debs out'
+              ./build.sh "$KDEB" debs desktop-debs out'
 
       - name: Boot the root filesystem under QEMU/KVM
         if: env.HAVE_TOKEN == 'true'
