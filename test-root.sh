@@ -32,7 +32,7 @@ line() { echo "UNBOUND-TEST-$1: $(sh -c "$2" 2>&1 | tr -s ' ' | tr '\n' ';')"; }
 line FW 'cat /lib/firmware/vendor/unbound-test.bin'
 line NET 'nmcli -t -f TYPE,STATE device'
 line USER 'id -nG tester'
-line SSH 'ssh -i /root/test-key -o BatchMode=yes -o StrictHostKeyChecking=no tester@127.0.0.1 echo key-login'
+line SSH 'ssh -i /root/test-key -o BatchMode=yes -o StrictHostKeyChecking=no -o LogLevel=ERROR tester@127.0.0.1 echo key-login'
 line SSHD 'sshd -T | grep -E "^(passwordauthentication|kbdinteractiveauthentication|permitrootlogin) "'
 line WIFI 'nmcli -t -f NAME,TYPE connection show'
 line SETUP 'ls -A /boot/efi/unbound'
