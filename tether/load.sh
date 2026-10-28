@@ -22,11 +22,15 @@ else
     exit
 fi
 
-sudo -n "$home/usbc-debug/usbc-debug" reboot > "$logs/usbc.log" 2>&1 ||
-    { echo "rebooting the mini failed, see $logs/usbc.log" >&2; exit 1; }
+# unboot's proxy resets the mini before the reboot VDM is acknowledged, so the
+# reboot is judged by the proxy going away and coming back, not by usbc-debug's status.
+sudo -n "$home/usbc-debug/usbc-debug" reboot > "$logs/usbc.log" 2>&1 || true
 for _ in $(seq 60); do ls /dev/cu.usbmodem* >/dev/null 2>&1 || break; sleep 1; done
+ls /dev/cu.usbmodem* >/dev/null 2>&1 &&
+    { echo "the mini did not reboot, see $logs/usbc.log" >&2; exit 1; }
 for _ in $(seq 120); do ls /dev/cu.usbmodem*1 >/dev/null 2>&1 && break; sleep 1; done
-proxy=$(ls /dev/cu.usbmodem*1 | head -1)
+proxy=$(ls /dev/cu.usbmodem*1 2>/dev/null | head -1)
+[ -n "$proxy" ] || { echo "the mini's proxy did not come up, see $logs/usbc.log" >&2; exit 1; }
 sleep 3
 start=$SECONDS
 (cd "$home/bootloader/proxyclient" && CHOSEN="$*" UNBOOTDEVICE=$proxy PYTHONPATH=. "$py" -u "$here/load.py" \
