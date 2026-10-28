@@ -10,7 +10,7 @@ on:
         default: unbound-hw/gfx-staging
       desktop-run:
         type: string
-        default: '40725756432'
+        default: '40739365836'
       boot-chain:
         type: choice
         options: [ uboot, direct ]
@@ -30,7 +30,7 @@ jobs:
     env:
       HAVE_TOKEN: ${{ secrets.SUBMODULE_TOKEN != '' }}
       BOOT_CHAIN: ${{ inputs.boot-chain || 'uboot' }}
-      DESKTOP_RUN: ${{ inputs.desktop-run || '40725756432' }}
+      DESKTOP_RUN: ${{ inputs.desktop-run || '40739365836' }}
 
     steps:
       - uses: actions/checkout@v7
