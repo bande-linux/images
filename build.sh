@@ -43,7 +43,7 @@ packages="systemd-sysv,udev,dbus,kmod,initramfs-tools,busybox,cpio,zstd,e2fsprog
 openssh-server,systemd-resolved,iproute2,iputils-ping,ca-certificates,less,nano,sudo,apt-utils"
 [ "$BOOT_CHAIN" = uboot ] && packages="$packages,systemd-boot,systemd-boot-efi"
 
-WORK=$work BOOT_CHAIN=$BOOT_CHAIN ROOT_UUID=$ROOT_UUID ESP_UUID=$esp_uuid \
+env -u UNBOOT -u U_BOOT WORK=$work BOOT_CHAIN=$BOOT_CHAIN ROOT_UUID=$ROOT_UUID ESP_UUID=$esp_uuid \
 mmdebstrap --variant=minbase --arch=arm64 --mode=root --format=directory \
     --components=main,non-free-firmware \
     --include="$(echo "$packages" | tr -d '\n')" \
