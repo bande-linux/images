@@ -1,6 +1,8 @@
 #!/bin/bash
 # Usage: load.sh <Image.gz> <dtb> <initrd> <log dir> <bootargs> [chosen.name=value ...]
-# Reboots the mini into unboot's USB proxy and boots Linux with the given files.
+# Reboots the mini into unboot's USB proxy and boots Linux with the given files. Run under
+# mini-session to keep the lock for work on the booted system; otherwise it holds the lock
+# only for the load.
 set -euo pipefail
 abs() { echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"; }
 img=$(abs "$1") dtb=$(abs "$2") initrd=$(abs "$3") logs=$4 args=$5
@@ -12,10 +14,13 @@ lock=$home/hil-host/mini.lock
 mkdir -p "$logs"
 logs=$(cd "$logs" && pwd)
 
-until mkdir "$lock" 2>/dev/null; do sleep 30; done
-me="tether $$ $(date '+%F %T')"
-echo "$me" > "$lock/owner"
-trap '[ "$(cat "$lock/owner" 2>/dev/null)" = "$me" ] && rm -rf "$lock"' EXIT
+if [ -n "${MINI_LOCK_OWNER:-}" ]; then
+    [ "$(cat "$lock/owner" 2>/dev/null)" = "$MINI_LOCK_OWNER" ] ||
+        { echo "MINI_LOCK_OWNER is set but $lock is not held by it" >&2; exit 1; }
+else
+    "$here/mini-session" tether "$0" "$img" "$dtb" "$initrd" "$logs" "$args" "$@"
+    exit
+fi
 
 sudo -n "$home/usbc-debug/usbc-debug" reboot > "$logs/usbc.log" 2>&1
 for _ in $(seq 60); do ls /dev/cu.usbmodem* >/dev/null 2>&1 || break; sleep 1; done

@@ -1,0 +1,15 @@
+#!/bin/bash
+# Usage: mini-session <name> <command> [args ...]
+# Holds the mini's lock while the command runs, so a boot and everything done on the
+# booted system (ssh, screendumps) form one session. Exports MINI_LOCK_OWNER; load.sh,
+# and any other script that checks it, then uses the held lock instead of taking its own.
+set -euo pipefail
+name=$1
+shift
+lock=${UNBOUND_HOME:-$HOME/Private/unbound-linux}/hil-host/mini.lock
+until mkdir "$lock" 2>/dev/null; do sleep 30; done
+MINI_LOCK_OWNER="$name $$ $(date '+%F %T')"
+echo "$MINI_LOCK_OWNER" > "$lock/owner"
+trap '[ "$(cat "$lock/owner" 2>/dev/null)" = "$MINI_LOCK_OWNER" ] && rm -rf "$lock"' EXIT
+export MINI_LOCK_OWNER
+"$@"
