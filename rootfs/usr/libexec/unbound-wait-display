@@ -1,0 +1,16 @@
+#!/bin/sh
+# The compositor opens the first DRM card it finds. Until apple-drm binds,
+# that is simpledrm's boot framebuffer, which goes away when apple-drm takes
+# over, leaving the compositor on a dead device and the screen black.
+set -eu
+
+subsystem=/sys/bus/platform/devices/soc:display-subsystem
+[ -e "$subsystem" ] || exit 0
+
+for _ in $(seq 200); do
+    for card in "$subsystem"/drm/card*; do
+        [ -e "$card" ] && exit 0
+    done
+    sleep 0.1
+done
+echo "unbound-wait-display: apple-drm did not come up, starting anyway" >&2
