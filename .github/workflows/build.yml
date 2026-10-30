@@ -10,7 +10,7 @@ on:
         default: unbound-hw/gfx-staging
       desktop-run:
         type: string
-        default: '40739365836'
+        default: '40946066709'
       boot-chain:
         type: choice
         options: [ uboot, direct ]
@@ -30,7 +30,7 @@ jobs:
     env:
       HAVE_TOKEN: ${{ secrets.SUBMODULE_TOKEN != '' }}
       BOOT_CHAIN: ${{ inputs.boot-chain || 'uboot' }}
-      DESKTOP_RUN: ${{ inputs.desktop-run || '40739365836' }}
+      DESKTOP_RUN: ${{ inputs.desktop-run || '40946066709' }}
 
     steps:
       - uses: actions/checkout@v7
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/download-artifact@v7
         if: env.HAVE_TOKEN == 'true'
         with:
-          name: unbound-debs
+          name: unbound-debs-arm64
           repository: unbound-linux/desktop
           run-id: ${{ env.DESKTOP_RUN }}
           github-token: ${{ secrets.SUBMODULE_TOKEN }}
