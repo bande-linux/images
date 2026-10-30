@@ -59,6 +59,8 @@ mmdebstrap --variant=minbase --arch=arm64 --mode=root --format=directory \
     "deb http://security.debian.org/debian-security $SUITE-security main non-free-firmware" \
     "deb $MIRROR $SUITE-backports main"
 
+"$here/check-session.sh" "$root"
+
 mkdir -p "$work/pkg"
 mv "$root/boot/efi" "$work/pkg/esp"
 rm -f "$work/pkg/esp/loader/random-seed"
