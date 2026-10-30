@@ -19,6 +19,8 @@ part() { sfdisk -d "$DISK" | grep "name=\"$1\"" | cut -d' ' -f1; }
 
 for _ in $(seq 30); do [ -b "$DISK" ] && break; sleep 1; done
 [ -b "$DISK" ] || fail "no $DISK"
+[ "$(cat "/sys/block/${DISK##*/}/queue/logical_block_size")" = "$SECTOR_SIZE" ] ||
+    fail "$DISK does not have the planned $SECTOR_SIZE-byte sectors"
 say "before:"
 sfdisk -d "$DISK"
 esp=$(part "Unbound ESP")

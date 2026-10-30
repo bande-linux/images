@@ -11,7 +11,7 @@ w=$(mktemp -d)
 cd "$w"
 unzip -q "$zip"
 gcc -O2 -static -o drmgrab "$here/drmgrab.c"
-mkfs.vfat -C -F 32 -n EFI -i "$(. "$plan"; echo "$ESP_VOLUME_ID")" esp.img $((512 * 1024)) >/dev/null
+mkfs.vfat -C -F 32 -S "$(. "$plan"; echo "$SECTOR_SIZE")" -n EFI -i "$(. "$plan"; echo "$ESP_VOLUME_ID")" esp.img $((512 * 1024)) >/dev/null
 mkdir -p espfw/vendorfw espfw/unbound/setup
 cp "$fw" espfw/vendorfw/firmware.cpio
 cp "$setup"/* espfw/unbound/setup/
