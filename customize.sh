@@ -13,6 +13,7 @@ chroot "$root" systemctl enable NetworkManager systemd-resolved greetd unbound-s
 chroot "$root" systemctl set-default graphical.target
 chroot "$root" systemctl enable systemd-networkd
 chroot "$root" systemctl disable systemd-networkd-wait-online
+chroot "$root" update-alternatives --set regulatory.db /lib/firmware/regulatory.db-upstream
 
 mkdir -p "$root/boot/efi/unboot" "$root/usr/lib/unboot" "$root/etc/kernel"
 touch "$root/boot/efi/.builder"
