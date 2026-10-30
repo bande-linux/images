@@ -5,6 +5,8 @@
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 zip=$(realpath "$1") fw=$(realpath "$2") setup=$(realpath "$3") plan=$(realpath "$4") out=$(realpath "$5")
+# Without a password the user can log in with a key but never use sudo, and root stays locked.
+[ ! -s "$setup/user" ] || [ -s "$setup/password" ] || { echo "$setup has a user but no password" >&2; exit 1; }
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends unzip mtools dosfstools e2fsprogs zstd cpio gcc libc6-dev linux-libc-dev >/dev/null
 w=$(mktemp -d)
