@@ -14,10 +14,10 @@ cd "$w"
 unzip -q "$zip"
 gcc -O2 -static -o drmgrab "$here/drmgrab.c"
 mkfs.vfat -C -F 32 -S "$(. "$plan"; echo "$SECTOR_SIZE")" -n EFI -i "$(. "$plan"; echo "$ESP_VOLUME_ID")" esp.img $((512 * 1024)) >/dev/null
-mkdir -p espfw/vendorfw espfw/unbound/setup
+mkdir -p espfw/vendorfw espfw/bande/setup
 cp "$fw" espfw/vendorfw/firmware.cpio
-cp "$setup"/* espfw/unbound/setup/
-mcopy -s -i esp.img esp/* espfw/vendorfw espfw/unbound ::/
+cp "$setup"/* espfw/bande/setup/
+mcopy -s -i esp.img esp/* espfw/vendorfw espfw/bande ::/
 printf '%s\n' "write drmgrab /usr/local/bin/drmgrab" "sif /usr/local/bin/drmgrab mode 0100755" |
     debugfs -w root.img -f - >/dev/null 2>&1
 e2fsck -fn root.img >/dev/null

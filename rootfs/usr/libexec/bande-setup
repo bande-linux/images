@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-dir=/boot/efi/unbound/setup
+dir=/boot/efi/bande/setup
 
 value() {
     if [ -f "$dir/$1" ]; then cat "$dir/$1"; fi
@@ -11,7 +11,7 @@ user=$(value user)
 if [ -n "$user" ]; then
     if id "$user" >/dev/null 2>&1; then
         if [ "$(id -u "$user")" -lt 1000 ]; then
-            echo "unbound-setup: $user is a system account" >&2
+            echo "bande-setup: $user is a system account" >&2
             exit 1
         fi
     else
@@ -27,7 +27,7 @@ if [ -n "$user" ]; then
         install -m 0600 -o "$user" -g "$user" "$dir/authorized_keys" "$home/.ssh/authorized_keys"
     fi
     if ! grep -q '^\[initial_session\]' /etc/greetd/config.toml; then
-        printf '\n[initial_session]\ncommand = "unbound-compositor"\nuser = "%s"\n' "$user" >> /etc/greetd/config.toml
+        printf '\n[initial_session]\ncommand = "bande-compositor"\nuser = "%s"\n' "$user" >> /etc/greetd/config.toml
     fi
 fi
 

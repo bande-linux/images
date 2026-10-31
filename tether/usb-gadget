@@ -16,7 +16,7 @@ for udc in $(ls /sys/class/udc); do
     echo 0xef > $g/bDeviceClass
     echo 0x02 > $g/bDeviceSubClass
     echo 0x01 > $g/bDeviceProtocol
-    echo Unbound > $g/strings/0x409/manufacturer
+    echo Bande > $g/strings/0x409/manufacturer
     echo "Mac mini" > $g/strings/0x409/product
     echo "$serial-$i" > $g/strings/0x409/serialnumber
     echo "$funcs" > $g/configs/c.1/strings/0x409/configuration

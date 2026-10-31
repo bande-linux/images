@@ -2,14 +2,14 @@
 set -eu
 root=$1
 
-echo unbound > "$root/etc/hostname"
-printf '127.0.0.1\tlocalhost\n127.0.1.1\tunbound\n::1\tlocalhost ip6-localhost ip6-loopback\n' > "$root/etc/hosts"
+echo bande > "$root/etc/hostname"
+printf '127.0.0.1\tlocalhost\n127.0.1.1\tbande\n::1\tlocalhost ip6-localhost ip6-loopback\n' > "$root/etc/hosts"
 cat > "$root/etc/fstab" <<EOT
 UUID=$ROOT_UUID / ext4 rw,errors=remount-ro,x-systemd.growfs 0 1
 UUID=$ESP_UUID /boot/efi vfat rw,umask=0077,nofail 0 2
 EOT
 cp -a --no-preserve=ownership "$ROOTFS/." "$root/"
-chroot "$root" systemctl enable NetworkManager systemd-resolved greetd unbound-setup
+chroot "$root" systemctl enable NetworkManager systemd-resolved greetd bande-setup
 chroot "$root" systemctl set-default graphical.target
 chroot "$root" systemctl enable systemd-networkd
 chroot "$root" systemctl disable systemd-networkd-wait-online
@@ -33,7 +33,7 @@ mkdir -p "$root/tmp/debs"
 cp "$WORK"/debs/*.deb "$root/tmp/debs/"
 mkdir -p "$root/tmp/desktop"
 cp "$WORK"/desktop/*.deb "$root/tmp/desktop/"
-SYSTEMD_RELAX_ESP_CHECKS=1 chroot "$root" sh -c 'apt-get install -y --no-install-recommends /tmp/debs/unbound-scripts_*.deb /tmp/debs/unbound-usb-gadget_*.deb && apt-get install -y --no-install-recommends /tmp/debs/linux-image-*.deb'
+SYSTEMD_RELAX_ESP_CHECKS=1 chroot "$root" sh -c 'apt-get install -y --no-install-recommends /tmp/debs/bande-scripts_*.deb /tmp/debs/bande-usb-gadget_*.deb && apt-get install -y --no-install-recommends /tmp/debs/linux-image-*.deb'
 chroot "$root" sh -c 'apt-get install -y --no-install-recommends /tmp/desktop/*.deb'
 rm -rf "$root/tmp/debs" "$root/tmp/desktop"
 umount "$root/boot/efi"

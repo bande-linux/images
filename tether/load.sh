@@ -8,7 +8,7 @@ abs() { echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"; }
 img=$(abs "$1") dtb=$(abs "$2") initrd=$(abs "$3") logs=$4 args=$5
 shift 5
 here=$(cd "$(dirname "$0")" && pwd)
-home=${UNBOUND_HOME:-$HOME/Private/unbound-linux}
+home=${BANDE_HOME:-$HOME/Private/bande-linux}
 py=$HOME/.venvs/unboot/bin/python
 lock=$home/hil-host/mini.lock
 mkdir -p "$logs"

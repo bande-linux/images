@@ -15,7 +15,7 @@ machine=(-machine virt,gic-version=max,its=off -accel kvm -cpu host -smp 2 -m 40
     -display none -monitor none)
 
 qemu-system-aarch64 "${machine[@]}" -machine dumpdtb=virt.dtb
-fdtput -t s virt.dtb /chosen unbound,efi-system-partition "$(cat "$test/esp-partuuid")"
+fdtput -t s virt.dtb /chosen bande,efi-system-partition "$(cat "$test/esp-partuuid")"
 
 qemu-system-aarch64 "${machine[@]}" -dtb virt.dtb \
     -kernel "$test/vmlinuz" -initrd "$test/initrd.img" \
@@ -24,7 +24,7 @@ qemu-system-aarch64 "${machine[@]}" -dtb virt.dtb \
 qpid=$!
 
 start=$SECONDS
-until grep -q "UNBOUND-TEST-DONE" serial.log 2>/dev/null; do
+until grep -q "BANDE-TEST-DONE" serial.log 2>/dev/null; do
     if ! kill -0 "$qpid" 2>/dev/null; then
         echo "QEMU exited before the test finished"
         cat serial.log
@@ -39,18 +39,18 @@ until grep -q "UNBOUND-TEST-DONE" serial.log 2>/dev/null; do
 done
 
 echo "Guest finished after $((SECONDS - start)) s"
-grep -a "UNBOUND-TEST\|Unbound:" serial.log
+grep -a "BANDE-TEST\|Bande:" serial.log
 fail=0
 check() { grep -aq "$1" serial.log || { echo "missing: $1"; fail=1; }; }
-check "UNBOUND-TEST-FW: unbound-test-firmware"
-check "UNBOUND-TEST-NET: .*ethernet:connected"
-check "UNBOUND-TEST-USER: tester .*sudo"
-check "UNBOUND-TEST-USER: tester .*render"
-check "UNBOUND-TEST-SSH: key-login"
-check "UNBOUND-TEST-SSHD: .*passwordauthentication no"
-check "UNBOUND-TEST-WIFI: .*Unbound Test:802-11-wireless"
-check "UNBOUND-TEST-SETUP:"
-grep -a "UNBOUND-TEST-SETUP:" serial.log | grep -q setup && { echo "setup data left on the ESP"; fail=1; }
-check "UNBOUND-TEST-SESSION: .*tester seat0"
-check "UNBOUND-TEST-COMPOSITOR: [0-9]"
+check "BANDE-TEST-FW: bande-test-firmware"
+check "BANDE-TEST-NET: .*ethernet:connected"
+check "BANDE-TEST-USER: tester .*sudo"
+check "BANDE-TEST-USER: tester .*render"
+check "BANDE-TEST-SSH: key-login"
+check "BANDE-TEST-SSHD: .*passwordauthentication no"
+check "BANDE-TEST-WIFI: .*Bande Test:802-11-wireless"
+check "BANDE-TEST-SETUP:"
+grep -a "BANDE-TEST-SETUP:" serial.log | grep -q setup && { echo "setup data left on the ESP"; fail=1; }
+check "BANDE-TEST-SESSION: .*tester seat0"
+check "BANDE-TEST-COMPOSITOR: [0-9]"
 exit $fail

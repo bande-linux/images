@@ -6,7 +6,7 @@
 set -euo pipefail
 name=$1
 shift
-lock=${UNBOUND_HOME:-$HOME/Private/unbound-linux}/hil-host/mini.lock
+lock=${BANDE_HOME:-$HOME/Private/bande-linux}/hil-host/mini.lock
 until mkdir "$lock" 2>/dev/null; do sleep 30; done
 MINI_LOCK_OWNER="$name $$ $(date '+%F %T')"
 echo "$MINI_LOCK_OWNER" > "$lock/owner"

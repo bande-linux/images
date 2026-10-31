@@ -13,14 +13,14 @@ while [ "$n" != "$(wc -l < /proc/modules)" ]; do
     sleep 1
 done
 mdev -s
-/usr/sbin/usb-gadget || echo UNBOUND-USB-GADGET-FAILED > /dev/kmsg
+/usr/sbin/usb-gadget || echo BANDE-USB-GADGET-FAILED > /dev/kmsg
 if [ -x /payload/run ]; then
     /payload/run > /tmp/tether.log 2>&1
     cat /tmp/tether.log > /dev/kmsg
 fi
 mkdir -p /etc/dropbear
 dropbear -R -s -p 22
-echo UNBOUND-TETHER-READY > /dev/kmsg
+echo BANDE-TETHER-READY > /dev/kmsg
 console() {
     while true; do
         [ -e /dev/$1 ] && setsid getty -n -l /bin/sh 115200 $1 vt100

@@ -16,7 +16,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 : "${SUITE:=trixie}"
 : "${MIRROR:=http://deb.debian.org/debian}"
 : "${BOOT_CHAIN:=uboot}"
-: "${NAME:=unbound-debian-13-desktop}"
+: "${NAME:=bande-debian-13-desktop}"
 : "${ROOT_UUID:=8a0b3f4e-6c1d-4e55-9b0a-2d7f1c3e5a61}"
 : "${ESP_VOLUME_ID:=0x3c2e1a9b}"
 : "${UNBOOT:=}"
@@ -34,7 +34,7 @@ work=$(mktemp -d)
 trap 'umount -R "$work/root" 2>/dev/null || true; rm -rf "$work"' EXIT
 root=$work/root
 mkdir -p "$out" "$work/debs" "$work/desktop"
-cp "$kernel_deb" "$scripts_debs"/unbound-scripts_*.deb "$scripts_debs"/unbound-usb-gadget_*.deb "$work/debs/"
+cp "$kernel_deb" "$scripts_debs"/bande-scripts_*.deb "$scripts_debs"/bande-usb-gadget_*.deb "$work/debs/"
 cp "$desktop_debs"/*.deb "$work/desktop/"
 [ -n "$UNBOOT" ] && cp "$UNBOOT" "$work/unboot.bin"
 [ -n "$U_BOOT" ] && cp "$U_BOOT" "$work/u-boot-nodtb.bin"
@@ -52,7 +52,7 @@ env -u UNBOOT -u U_BOOT WORK=$work ROOTFS=$here/rootfs BOOT_CHAIN=$BOOT_CHAIN RO
 mmdebstrap --variant=minbase --arch=arm64 --mode=root --format=directory \
     --components=main,non-free-firmware \
     --include="$(echo "$packages" | tr -d '\n')" \
-    --setup-hook="mkdir -p \"\$1/etc/apt/preferences.d\" && cp \"$here/rootfs/etc/apt/preferences.d/unbound-mesa\" \"\$1/etc/apt/preferences.d/\"" \
+    --setup-hook="mkdir -p \"\$1/etc/apt/preferences.d\" && cp \"$here/rootfs/etc/apt/preferences.d/bande-mesa\" \"\$1/etc/apt/preferences.d/\"" \
     --customize-hook="$here/customize.sh \"\$1\"" \
     "$SUITE" "$root" "deb $MIRROR $SUITE main non-free-firmware" \
     "deb $MIRROR $SUITE-updates main non-free-firmware" \

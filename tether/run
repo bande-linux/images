@@ -6,7 +6,7 @@ say() { echo "TETHER: $*"; }
 fail() { say "FAILED: $*"; finish 1; }
 finish() {
     say "DONE $1"
-    stick=$(blkid -t LABEL=UNBOUND -o device | grep "^/dev/sd" | head -1)
+    stick=$(blkid -t LABEL=BANDE -o device | grep "^/dev/sd" | head -1)
     if [ -n "$stick" ]; then
         mkdir -p /mnt/stick
         mount -t exfat "$stick" /mnt/stick && mkdir -p /mnt/stick/tether &&
@@ -23,8 +23,8 @@ for _ in $(seq 30); do [ -b "$DISK" ] && break; sleep 1; done
     fail "$DISK does not have the planned $SECTOR_SIZE-byte sectors"
 say "before:"
 sfdisk -d "$DISK"
-esp=$(part "Unbound ESP")
-root=$(part "Unbound Linux")
+esp=$(part "Bande ESP")
+root=$(part "Bande Linux")
 
 case "$MODE" in
 install)
@@ -32,12 +32,12 @@ install)
         [ "$(sfdisk -d "$DISK" | grep "^/dev/" | sha256sum | cut -d" " -f1)" = "$EXPECT" ] ||
             fail "the partition table is not the one the plan was made for"
         printf '%s\n' \
-            "start=$ESP_START, size=$ESP_SIZE, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=$ESP_UUID, name=\"Unbound ESP\"" \
-            "start=$ROOT_START, size=$ROOT_SIZE, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=$ROOT_PARTUUID, name=\"Unbound Linux\"" |
+            "start=$ESP_START, size=$ESP_SIZE, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=$ESP_UUID, name=\"Bande ESP\"" \
+            "start=$ROOT_START, size=$ROOT_SIZE, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=$ROOT_PARTUUID, name=\"Bande Linux\"" |
             sfdisk --append "$DISK" || fail "sfdisk"
         mdev -s
-        esp=$(part "Unbound ESP")
-        root=$(part "Unbound Linux")
+        esp=$(part "Bande ESP")
+        root=$(part "Bande Linux")
     fi
     [ -n "$esp" ] && [ -n "$root" ] || fail "partitions missing after partitioning"
     sfdisk -d "$DISK" | grep "^$esp " | grep -qi "uuid=$ESP_UUID" || fail "$esp is not the planned ESP"

@@ -2,7 +2,7 @@
 # Usage: install.sh <state dir> install|remove
 # The state dir holds Image.gz, t8112-j473.dtb, modules-*.tar.xz, image.zip, firmware.cpio,
 # setup/ and plan. Boots the tether initramfs with the payload, which partitions and writes
-# (or removes) only the "Unbound ESP" and "Unbound Linux" partitions and logs to the UNBOUND stick.
+# (or removes) only the "Bande ESP" and "Bande Linux" partitions and logs to the BANDE stick.
 set -euo pipefail
 state=$(cd "$1" && pwd) mode=$2
 here=$(cd "$(dirname "$0")" && pwd)

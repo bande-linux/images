@@ -7,7 +7,7 @@ on:
     inputs:
       kernel-ref:
         type: string
-        default: unbound-hw/gfx-staging
+        default: bande-hw/gfx-staging
       desktop-run:
         type: string
         default: '40739365836'
@@ -18,13 +18,13 @@ on:
 
 jobs:
   kernel:
-    uses: unbound-linux/linux/.github/workflows/build.yml@unbound-hw/ci-gfx
+    uses: bande-linux/linux/.github/workflows/build.yml@bande-hw/ci-gfx
     with:
-      ref: ${{ inputs.kernel-ref || 'unbound-hw/gfx-staging' }}
+      ref: ${{ inputs.kernel-ref || 'bande-hw/gfx-staging' }}
 
   image:
     needs: kernel
-    runs-on: [self-hosted, unbound-kvm]
+    runs-on: [self-hosted, bande-kvm]
     timeout-minutes: 60
 
     env:
@@ -51,8 +51,8 @@ jobs:
       - uses: actions/download-artifact@v7
         if: env.HAVE_TOKEN == 'true'
         with:
-          name: unbound-debs
-          repository: unbound-linux/desktop
+          name: bande-debs
+          repository: bande-linux/desktop
           run-id: ${{ env.DESKTOP_RUN }}
           github-token: ${{ secrets.SUBMODULE_TOKEN }}
           path: desktop-debs
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v7
         if: env.HAVE_TOKEN == 'true'
         with:
-          repository: unbound-linux/system-scripts
+          repository: bande-linux/system-scripts
           ref: prep/debian-usb-gadget
           token: ${{ secrets.SUBMODULE_TOKEN }}
           path: system-scripts
@@ -68,7 +68,7 @@ jobs:
       - uses: actions/checkout@v7
         if: env.HAVE_TOKEN == 'true'
         with:
-          repository: unbound-linux/bootloader
+          repository: bande-linux/bootloader
           token: ${{ secrets.SUBMODULE_TOKEN }}
           submodules: recursive
           path: bootloader
@@ -76,13 +76,13 @@ jobs:
       - uses: actions/checkout@v7
         if: env.HAVE_TOKEN == 'true'
         with:
-          repository: unbound-linux/u-boot
+          repository: bande-linux/u-boot
           ref: prep/unboot
           token: ${{ secrets.SUBMODULE_TOKEN }}
           fetch-depth: 1
           path: u-boot
 
-      - name: Build unbound-scripts, unboot and u-boot
+      - name: Build bande-scripts, unboot and u-boot
         if: env.HAVE_TOKEN == 'true'
         run: |
           mkdir -p debs
