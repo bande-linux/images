@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [ 'prep/**' ]
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       kernel-ref:
