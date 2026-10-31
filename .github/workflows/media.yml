@@ -49,7 +49,9 @@ jobs:
             amd64) qemu="qemu-system-x86 ovmf" ;;
             arm64) qemu="qemu-system-arm qemu-efi-aarch64" ;;
           esac
-          apt-get install -y -qq --no-install-recommends simple-cdd xorriso curl ca-certificates \
+          # simple-cdd's and debian-cd's recommends (mtools, dosfstools, isolinux, ...) are needed
+          apt-get install -y -qq simple-cdd >/dev/null
+          apt-get install -y -qq --no-install-recommends xorriso curl ca-certificates \
             gpg gpg-agent xz-utils cpio qemu-utils $qemu >/dev/null
 
       - name: Build the ISO
