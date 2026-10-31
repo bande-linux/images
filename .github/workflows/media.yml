@@ -50,7 +50,7 @@ jobs:
             arm64) qemu="qemu-system-arm qemu-efi-aarch64" ;;
           esac
           apt-get install -y -qq --no-install-recommends simple-cdd xorriso curl ca-certificates \
-            gpg xz-utils cpio qemu-utils $qemu >/dev/null
+            gpg gpg-agent xz-utils cpio qemu-utils $qemu >/dev/null
 
       - name: Build the ISO
         env:
