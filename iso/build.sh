@@ -113,6 +113,7 @@ EOF
 
 date=$(date -u +%F)
 iso=bande-os-$date-$arch.iso
+export DISC_END_HOOK="$here/disc-end-hook.sh"
 (cd "$work" && build-simple-cdd --force-root --conf "$work/bande.conf" \
     --dist "$codename" --profiles bande --auto-profiles bande --verbose)
 
@@ -125,6 +126,13 @@ mkdir "$work/check"
 xorriso -osirrox on -indev "$built" -extract /dists "$work/check/dists" \
     -extract /pool "$work/check/pool" 2>/dev/null
 bad=0
+for r in "$work"/check/dists/*/Release; do
+    for h in $(sed -n 's/^\(SHA[0-9]*\):$/\1/p' "$r"); do
+        for p in "$(dirname "$r")"/*/binary-"$arch"/Packages.gz; do
+            zcat "$p" | grep -q "^$h: " || { echo "$r lists $h, which $p lacks"; bad=1; }
+        done
+    done
+done
 for p in "$work"/check/dists/*/*/binary-"$arch"/Packages.gz; do
     zcat "$p" | awk -v dir="$work/check" '
         /^Package: / { pkg = $2 } /^Version: / { ver = $2 }
