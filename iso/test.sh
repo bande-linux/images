@@ -83,8 +83,13 @@ cp "$here/test.preseed" initrd-extra/preseed.cfg
 # cause. The initrd has merged /usr: lib is a symlink the cpio must not replace.
 mkdir -p initrd-extra/usr/lib/debian-installer-startup.d
 cat > initrd-extra/usr/lib/debian-installer-startup.d/S99bande-test-syslog <<'EOT'
-(while [ ! -e /var/log/syslog ]; do sleep 1; done
- tail -n +1 -f /var/log/syslog | sed 's/^/SYSLOG: /') > /dev/console 2>&1 &
+# Line by line, so nothing waits in a buffer when the installer stops.
+bande_copy() {
+    while [ ! -e "$1" ]; do sleep 1; done
+    tail -n +1 -f "$1" | while IFS= read -r l; do echo "$2: $l"; done > /dev/console 2>&1
+}
+bande_copy /var/log/syslog SYSLOG &
+bande_copy /target/debootstrap/debootstrap.log DEBOOTSTRAP &
 EOT
 sed "s|@PACKAGES@|$packages|" "$here/test-late.sh" > initrd-extra/bande-test-late.sh
 (cd initrd-extra && find . -mindepth 1 | cpio -o -H newc --quiet | gzip) > extra.cpio.gz
@@ -93,7 +98,7 @@ cat initrd.gz extra.cpio.gz > initrd-test.gz
 # The installer's syslog and the last messages, without screen updates.
 tail_log() {
     sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' "$1" | tr -cd '[:print:]\n' |
-        grep -a -e '^SYSLOG: ' -e 'BANDE-' -e 'login:' | tail -120
+        grep -a -e '^SYSLOG: ' -e '^DEBOOTSTRAP: ' -e 'BANDE-' -e 'login:' | tail -120
 }
 
 # Wait for QEMU to exit or a pattern to appear in the serial log.
@@ -102,7 +107,7 @@ wait_for() {
     while kill -0 "$qpid" 2>/dev/null; do
         if [ -n "$pattern" ] && grep -aq "$pattern" "$log" 2>/dev/null; then return 0; fi
         if grep -saq -e '!! ERROR' -e 'Kernel panic' "$log"; then
-            sleep 10
+            sleep 20
             echo "Error in $log:"; grep -sa -m3 -e '!! ERROR' -e 'Kernel panic' "$log"; echo "End of $log:"
             tail_log "$log"
             return 1
