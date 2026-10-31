@@ -89,9 +89,6 @@ bande_copy() {
     tail -n +1 -f "$1" | while IFS= read -r l; do echo "$2: $l"; done > /dev/console 2>&1
 }
 bande_copy /var/log/syslog SYSLOG &
-(echo "BANDE-TEST-SHA256: abc $(printf abc | sha256sum)"
- echo "BANDE-TEST-SHA256: 1M zeros $(head -c 1048576 /dev/zero | sha256sum)"
- echo "BANDE-TEST-CPU: $(grep -m1 -o -w -e sha_ni -e sha2 /proc/cpuinfo)") > /dev/console 2>&1
 bande_copy /target/debootstrap/debootstrap.log DEBOOTSTRAP &
 EOT
 sed "s|@PACKAGES@|$packages|" "$here/test-late.sh" > initrd-extra/bande-test-late.sh
