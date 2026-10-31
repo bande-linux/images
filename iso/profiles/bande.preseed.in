@@ -1,0 +1,17 @@
+# Bande on Debian testing. build.sh fills in the @...@ values; lines tagged
+# "@APT@" are dropped when the medium is built without the Bande archive.
+# Partitioning, encryption, users and the rest stay Debian's own questions.
+
+d-i mirror/country string manual
+d-i mirror/http/hostname string deb.debian.org
+d-i mirror/http/directory string /debian
+d-i mirror/suite string testing
+d-i apt-setup/use_mirror boolean true
+
+@APT@d-i apt-setup/local0/repository string @APT_URL@ rolling main
+@APT@d-i apt-setup/local0/comment string Bande
+@APT@d-i apt-setup/local0/key string file:///cdrom/simple-cdd/bande-archive-key.asc
+
+# bande-os brings the desktop, so tasksel has nothing left to offer.
+tasksel tasksel/first multiselect
+d-i pkgsel/include string @PACKAGES@

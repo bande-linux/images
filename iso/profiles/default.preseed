@@ -1,0 +1,4 @@
+# Loaded once the installer has mounted the medium. It replaces simple-cdd's
+# example default profile, which pre-answers the host name and partitioning.
+# Everything Bande adds lives in bande.preseed.
+d-i preseed/early_command string anna-install simple-cdd-profiles

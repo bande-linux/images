@@ -1,0 +1,101 @@
+name: media
+
+on:
+  schedule:
+    - cron: '17 4 * * 2'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Attach the ISOs to a GitHub Release named after today's date
+        type: boolean
+        default: false
+      packages:
+        description: Packages to install (auto = bande-os once published, else a minimal Debian)
+        type: string
+        default: auto
+      bande-apt:
+        description: Add the Bande archive to the installed system
+        type: choice
+        options: [ auto, 'yes', 'no' ]
+        default: auto
+
+jobs:
+  iso:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 330
+    container:
+      image: debian:testing
+      options: --privileged
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Install the tools
+        run: |
+          apt-get update -qq
+          case ${{ matrix.arch }} in
+            amd64) qemu="qemu-system-x86 ovmf" ;;
+            arm64) qemu="qemu-system-arm qemu-efi-aarch64" ;;
+          esac
+          apt-get install -y -qq --no-install-recommends simple-cdd xorriso curl ca-certificates \
+            gpg xz-utils cpio qemu-utils $qemu >/dev/null
+
+      - name: Build the ISO
+        env:
+          BANDE_PACKAGES: ${{ inputs.packages || 'auto' }}
+          BANDE_APT: ${{ inputs.bande-apt || 'auto' }}
+        run: |
+          start=$(date +%s)
+          iso/build.sh ${{ matrix.arch }} out
+          echo "Built in $(( $(date +%s) - start )) s"
+
+      - name: Install it unattended under QEMU
+        run: iso/test.sh ${{ matrix.arch }} out/*.iso
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: iso-${{ matrix.arch }}
+          path: out/
+          retention-days: 14
+          compression-level: 0
+
+  publish:
+    needs: iso
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: iso-*
+          merge-multiple: true
+          path: out
+
+      - name: Attach the ISOs to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          cd out
+          tag=$(ls bande-os-*-amd64.iso | sed 's/^bande-os-\(.*\)-amd64\.iso$/\1/')
+          cat *.sha256 > SHA256SUMS
+          { echo "Bande install media for PCs, built on $tag from Debian testing."; echo
+            for f in *.info; do echo '```'; cat "$f"; echo '```'; done; } > notes.md
+          if gh release view "$tag" -R "$REPO" >/dev/null 2>&1; then
+            gh release upload "$tag" -R "$REPO" --clobber *.iso SHA256SUMS
+          else
+            gh release create "$tag" -R "$REPO" --target "$GITHUB_SHA" --title "$tag" \
+              --notes-file notes.md *.iso SHA256SUMS
+          fi
