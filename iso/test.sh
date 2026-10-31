@@ -2,7 +2,7 @@
 # Install a Bande ISO unattended in QEMU, boot the installed system and check
 # that it reaches a login prompt with the expected packages and apt source.
 #
-# Usage: iso/test.sh <amd64|arm64> <iso>
+# Usage: iso/test.sh <amd64|arm64> <iso> [log-dir]
 # amd64 uses KVM when /dev/kvm exists, otherwise TCG; arm64 uses TCG and AAVMF.
 # The ISO itself stays unattended-free: the answers go into a copy of its
 # initrd, and the kernel boots from that copy with the ISO's own parameters.
@@ -11,9 +11,18 @@ set -euo pipefail
 arch=${1:?usage: iso/test.sh <amd64|arm64> <iso>}
 iso=$(realpath "${2:?usage: iso/test.sh <amd64|arm64> <iso>}")
 here=$(dirname "$(realpath "$0")")
+logs=$(realpath -m "${3:-test-logs}")
 work=$(mktemp -d)
 qpid=
-trap '[ -n "$qpid" ] && kill "$qpid" 2>/dev/null; rm -rf "$work"' EXIT
+# Keep the serial logs, without terminal control sequences.
+save_logs() {
+    mkdir -p "$logs"
+    for l in install boot; do
+        [ -f "$work/$l.log" ] || continue
+        sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' "$work/$l.log" | tr -cd '[:print:]\n' > "$logs/$arch-$l.log"
+    done
+}
+trap '[ -n "$qpid" ] && kill "$qpid" 2>/dev/null; save_logs; rm -rf "$work"' EXIT
 cd "$work"
 
 die() { echo "test.sh: $*" >&2; exit 1; }
@@ -70,18 +79,36 @@ echo "ISO preseed: Bande archive $apt, packages: ${packages:-none}"
 
 mkdir initrd-extra
 cp "$here/test.preseed" initrd-extra/preseed.cfg
+# Copy the installer's syslog to the serial console, so failures show their cause.
+mkdir -p initrd-extra/lib/debian-installer-startup.d
+cat > initrd-extra/lib/debian-installer-startup.d/S99bande-test-syslog <<'EOT'
+(while [ ! -e /var/log/syslog ]; do sleep 1; done
+ tail -n +1 -f /var/log/syslog | sed 's/^/SYSLOG: /') > /dev/console 2>&1 &
+EOT
 sed "s|@PACKAGES@|$packages|" "$here/test-late.sh" > initrd-extra/bande-test-late.sh
 (cd initrd-extra && find . | cpio -o -H newc --quiet | gzip) > extra.cpio.gz
 cat initrd.gz extra.cpio.gz > initrd-test.gz
+
+# The installer's syslog and the last messages, without screen updates.
+tail_log() {
+    sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' "$1" | tr -cd '[:print:]\n' |
+        grep -a -e '^SYSLOG: ' -e 'BANDE-' -e 'login:' | tail -120
+}
 
 # Wait for QEMU to exit or a pattern to appear in the serial log.
 wait_for() {
     local log=$1 limit=$2 pattern=$3 start=$SECONDS next=300
     while kill -0 "$qpid" 2>/dev/null; do
         if [ -n "$pattern" ] && grep -aq "$pattern" "$log" 2>/dev/null; then return 0; fi
+        if grep -aq '!! ERROR' "$log"; then
+            sleep 10
+            echo "The installer reported an error; end of $log:"
+            tail_log "$log"
+            return 1
+        fi
         if [ $((SECONDS - start)) -ge $limit ]; then
             echo "Timed out after $limit s; end of $log:"
-            tail -c 6000 "$log" | tr -cd '[:print:]\n' | tail -60
+            tail_log "$log"
             return 1
         fi
         if [ $((SECONDS - start)) -ge $next ]; then
@@ -106,7 +133,7 @@ fi
 install_time=$((SECONDS - start))
 grep -aq "BANDE-TEST-LATE: done" install.log || {
     echo "The installer stopped before its late command; end of install.log:"
-    tail -c 6000 install.log | tr -cd '[:print:]\n' | tail -60
+    tail_log install.log
     exit 1
 }
 echo "Installed in $install_time s"
