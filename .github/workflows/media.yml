@@ -74,9 +74,11 @@ jobs:
           if-no-files-found: ignore
 
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: iso-${{ matrix.arch }}
           path: out/
+          if-no-files-found: ignore
           retention-days: 14
           compression-level: 0
 
