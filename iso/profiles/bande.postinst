@@ -1,0 +1,10 @@
+#!/bin/sh
+# Runs in the installed system at the end of the install. Once bande-apt-source
+# provides the Bande archive, drop the installer's copy of it: two entries for
+# one archive with different Signed-By keys make apt refuse to run.
+set -e
+
+if ls /etc/apt/sources.list.d/bande*.sources >/dev/null 2>&1; then
+    sed -i -e '/^## Bande$/d' -e '\,bande-linux\.github\.io/apt,d' /etc/apt/sources.list
+    rm -f /etc/apt/keyrings/Bande.asc
+fi
