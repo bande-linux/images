@@ -129,7 +129,7 @@ bad=0
 for r in "$work"/check/dists/*/Release; do
     for h in $(sed -n 's/^\(SHA[0-9]*\):$/\1/p' "$r"); do
         for p in "$(dirname "$r")"/*/binary-"$arch"/Packages.gz; do
-            zcat "$p" | grep -q "^$h: " || { echo "$r lists $h, which $p lacks"; bad=1; }
+            zcat "$p" | grep -c "^$h: " >/dev/null || { echo "$r lists $h, which $p lacks"; bad=1; }
         done
     done
 done
