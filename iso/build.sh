@@ -119,6 +119,29 @@ iso=bande-os-$date-$arch.iso
 mkdir -p "$out"
 built=$(find "$work/images" -name '*.iso' | head -1)
 [ -n "$built" ] || die "simple-cdd made no ISO"
+
+# debootstrap rejects any package whose checksum differs from the medium's index.
+mkdir "$work/check"
+xorriso -osirrox on -indev "$built" -extract /dists "$work/check/dists" \
+    -extract /pool "$work/check/pool" 2>/dev/null
+bad=0
+for p in "$work"/check/dists/*/*/binary-"$arch"/Packages.gz; do
+    zcat "$p" | awk -v dir="$work/check" '
+        /^Package: / { pkg = $2 } /^Version: / { ver = $2 }
+        /^Filename: / { f = $2 } /^SHA256: / { s = $2 }
+        /^$/ && f { print s "  " dir "/" f; f = "" }
+        END { if (f) print s "  " dir "/" f }' > "$work/check/sums"
+    echo "$p: $(wc -l < "$work/check/sums") packages"
+    if ! sha256sum --quiet -c "$work/check/sums"; then
+        bad=1
+        sha256sum --quiet -c "$work/check/sums" 2>/dev/null | sed 's/: FAILED.*//' | while read -r f; do
+            n=$(basename "$f")
+            echo "index entries for $n:"; zcat "$p" | grep -B20 -A12 "^Filename: .*/$n$" | grep -E '^(Package|Version|Architecture|Filename|Size|SHA256):'
+            echo "file: $(stat -c %s "$f") bytes, $(sha256sum < "$f")"
+        done
+    fi
+done
+[ $bad = 0 ] || die "packages on the ISO do not match its index"
 mv "$built" "$out/$iso"
 cat > "$out/$iso.info" <<EOF
 iso=$iso
