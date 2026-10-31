@@ -79,14 +79,15 @@ echo "ISO preseed: Bande archive $apt, packages: ${packages:-none}"
 
 mkdir initrd-extra
 cp "$here/test.preseed" initrd-extra/preseed.cfg
-# Copy the installer's syslog to the serial console, so failures show their cause.
-mkdir -p initrd-extra/lib/debian-installer-startup.d
-cat > initrd-extra/lib/debian-installer-startup.d/S99bande-test-syslog <<'EOT'
+# Copy the installer's syslog to the serial console, so failures show their
+# cause. The initrd has merged /usr: lib is a symlink the cpio must not replace.
+mkdir -p initrd-extra/usr/lib/debian-installer-startup.d
+cat > initrd-extra/usr/lib/debian-installer-startup.d/S99bande-test-syslog <<'EOT'
 (while [ ! -e /var/log/syslog ]; do sleep 1; done
  tail -n +1 -f /var/log/syslog | sed 's/^/SYSLOG: /') > /dev/console 2>&1 &
 EOT
 sed "s|@PACKAGES@|$packages|" "$here/test-late.sh" > initrd-extra/bande-test-late.sh
-(cd initrd-extra && find . | cpio -o -H newc --quiet | gzip) > extra.cpio.gz
+(cd initrd-extra && find . -mindepth 1 | cpio -o -H newc --quiet | gzip) > extra.cpio.gz
 cat initrd.gz extra.cpio.gz > initrd-test.gz
 
 # The installer's syslog and the last messages, without screen updates.
@@ -100,9 +101,9 @@ wait_for() {
     local log=$1 limit=$2 pattern=$3 start=$SECONDS next=300
     while kill -0 "$qpid" 2>/dev/null; do
         if [ -n "$pattern" ] && grep -aq "$pattern" "$log" 2>/dev/null; then return 0; fi
-        if grep -aq '!! ERROR' "$log"; then
+        if grep -saq -e '!! ERROR' -e 'Kernel panic' "$log"; then
             sleep 10
-            echo "The installer reported an error; end of $log:"
+            echo "Error in $log:"; grep -sa -m3 -e '!! ERROR' -e 'Kernel panic' "$log"; echo "End of $log:"
             tail_log "$log"
             return 1
         fi
