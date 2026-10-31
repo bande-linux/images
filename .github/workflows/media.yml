@@ -1,6 +1,8 @@
 name: media
 
 on:
+  push:
+    branches: [ media/pc-iso ]  # TEMPORARY: registers the workflow for testing
   schedule:
     - cron: '17 4 * * 2'
   workflow_dispatch:
