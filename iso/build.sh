@@ -87,14 +87,17 @@ while read -r _ f; do
 done < "$work/di-files"
 (cd "$images" && sha256sum --quiet -c "$work/di-files")
 
+# bande.downloads: packages the installer needs from the disc before it can
+# use the network mirror (zstd for the first initramfs); on the disc, not installed.
 mkdir -p "$work/profiles"
 cp "$here/profiles/default.preseed" "$here/profiles/bande.postinst" \
-    "$here/profiles/bande.description" "$here/bande-archive-key.asc" "$work/profiles/"
+    "$here/profiles/bande.description" "$here/profiles/bande.downloads" \
+    "$here/bande-archive-key.asc" "$work/profiles/"
 echo "$work/profiles/bande-archive-key.asc" > "$work/profiles/bande.extra"
 if [ "$BANDE_APT" = yes ]; then apt_tag=; else apt_tag='/^@APT@/d;'; fi
 sed -e "$apt_tag" -e 's/^@APT@//' -e "s|@APT_URL@|$apt_url|" -e "s|@PACKAGES@|$BANDE_PACKAGES|" \
     "$here/profiles/bande.preseed.in" > "$work/profiles/bande.preseed"
-grep -v "^#" "$work/profiles/bande.preseed" | grep -q @ && die "unfilled value in bande.preseed"
+grep -v "^#" "$work/profiles/bande.preseed" | grep -c @ >/dev/null && die "unfilled value in bande.preseed"
 
 cat > "$work/bande.conf" <<EOF
 CODENAME="$codename"

@@ -2,9 +2,7 @@ name: media
 
 on:
   push:
-    branches: [ media/pc-iso ]  # TEMPORARY: registers the workflow for testing
-  schedule:
-    - cron: '17 4 * * 2'
+    tags: [ 'v*' ]
   workflow_dispatch:
     inputs:
       publish:
@@ -22,7 +20,22 @@ on:
         default: auto
 
 jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        if: github.event_name == 'push'
+        with:
+          fetch-depth: 0
+      - name: Build tags only from main
+        if: github.event_name == 'push'
+        run: |
+          git fetch -q origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main ||
+            { echo "::error::$GITHUB_REF_NAME is not on main"; exit 1; }
+
   iso:
+    needs: gate
     strategy:
       fail-fast: false
       matrix:
