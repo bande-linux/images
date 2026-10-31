@@ -8,9 +8,10 @@ on:
       kernel-ref:
         type: string
         default: bande-hw/gfx-staging
-      desktop-run:
+      desktop-version:
+        description: The bande-desktop version the APT archive must serve; empty takes the newest
         type: string
-        default: '40739365836'
+        default: ''
       boot-chain:
         type: choice
         options: [ uboot, direct ]
@@ -30,7 +31,7 @@ jobs:
     env:
       HAVE_TOKEN: ${{ secrets.SUBMODULE_TOKEN != '' }}
       BOOT_CHAIN: ${{ inputs.boot-chain || 'uboot' }}
-      DESKTOP_RUN: ${{ inputs.desktop-run || '40739365836' }}
+      DESKTOP_VERSION: ${{ inputs.desktop-version }}
 
     steps:
       - uses: actions/checkout@v7
@@ -48,14 +49,22 @@ jobs:
           name: kernel
           path: kernel
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/checkout@v7
         if: env.HAVE_TOKEN == 'true'
         with:
-          name: bande-debs
-          repository: bande-linux/desktop
-          run-id: ${{ env.DESKTOP_RUN }}
-          github-token: ${{ secrets.SUBMODULE_TOKEN }}
-          path: desktop-debs
+          repository: bande-linux/apt
+          sparse-checkout: conf
+          fetch-depth: 1
+          path: apt
+
+      - name: Fetch the desktop packages from the APT archive
+        if: env.HAVE_TOKEN == 'true'
+        run: |
+          self=$(grep -o 'containers/[0-9a-f]\{64\}' /proc/self/mountinfo | head -1 | cut -d/ -f2)
+          docker run --rm --volumes-from "$self" -w "$PWD" -e DESKTOP_VERSION debian:trixie sh -euc '
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends ca-certificates curl gpg gpgv xz-utils >/dev/null
+            ./fetch-desktop.sh apt/conf/archive-key.asc desktop-debs "$DESKTOP_VERSION"'
 
       - uses: actions/checkout@v7
         if: env.HAVE_TOKEN == 'true'
