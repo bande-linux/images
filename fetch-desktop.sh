@@ -37,6 +37,9 @@ xz -dc "$work/Packages.xz" | awk '
     /^Filename: / { f = $2 } /^SHA256: / { s = $2 }
     /^$/ { if (p != "") print p, v, a, f, s; p = "" }
     END { if (p != "") print p, v, a, f, s }' > "$work/list"
+xz -dc "$work/Packages.xz" | awk '
+    /^Package: / { p = $2 } p == "bande-desktop" && /^Recommends: / { sub(/^Recommends: /, ""); print }' |
+    tr ',' '\n' | sed 's/^ *//; s/[ (|].*//' | grep '^bande-' > "$work/recommended" || true
 get owners state/owners
 
 version=$(awk '$1 == "bande-desktop" { print $2 }' "$work/list")
@@ -48,7 +51,8 @@ rm -rf "$out"
 mkdir -p "$out"
 count=0
 while read -r package source; do
-    [ "$source" = desktop ] || [ "$source" = apt ] || continue
+    [ "$source" = desktop ] || [ "$source" = apt ] ||
+        { [ "$source" = apps ] && grep -qxF "$package" "$work/recommended"; } || continue
     read -r _ deb_version arch filename sha256 < <(awk -v p="$package" '$1 == p' "$work/list") || continue
     [ "$arch" = "$ARCH" ] || [ "$arch" = all ] || fail "$package is listed for $arch in binary-$ARCH"
     [ "$source" != desktop ] || [ "$deb_version" = "$version" ] ||
@@ -62,4 +66,9 @@ done < "$work/owners"
 for package in bande-desktop bande-compositor bande-archive-keyring bande-apt-source; do
     compgen -G "$out/${package}_*.deb" > /dev/null || fail "the archive lacks $package"
 done
+while read -r package; do
+    compgen -G "$out/${package}_*.deb" > /dev/null && continue
+    [ "${ALLOW_MISSING_APPS:-}" = 1 ] || fail "bande-desktop recommends $package, which the archive lacks (ALLOW_MISSING_APPS=1 builds without it)"
+    echo "fetch-desktop: building without $package, which the archive lacks" >&2
+done < "$work/recommended"
 echo "Fetched $count packages of bande-desktop $version for $ARCH into $out"
