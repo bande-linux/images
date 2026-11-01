@@ -9,6 +9,9 @@ UUID=$ROOT_UUID / ext4 rw,errors=remount-ro,x-systemd.growfs 0 1
 UUID=$ESP_UUID /boot/efi vfat rw,umask=0077,nofail 0 2
 EOT
 cp -a --no-preserve=ownership "$ROOTFS/." "$root/"
+chroot "$root" dpkg-divert --no-rename --package bande-images \
+    --divert /usr/share/alsa/ucm2/conf.d/macaudio/cs42l84/Headphones.conf.asahi \
+    --add /usr/share/alsa/ucm2/conf.d/macaudio/cs42l84/Headphones.conf
 chroot "$root" systemctl enable NetworkManager systemd-resolved greetd bande-setup
 chroot "$root" systemctl set-default graphical.target
 chroot "$root" systemctl enable systemd-networkd
