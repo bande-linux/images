@@ -53,7 +53,7 @@ if [ "$(od -An -tx1 -N2 "$initrd" | tr -d ' \n')" != 1f8b ]; then
     exit 1
 fi
 
-. /usr/share/unbound-scripts/functions.sh
+. /usr/share/bande-scripts/functions.sh
 mount_sys_esp /run/.system-efi
 target=/run/.system-efi/unboot/boot.bin
 mkdir -p "${target%/*}"
