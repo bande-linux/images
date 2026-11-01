@@ -14,10 +14,15 @@ trap 'umount -R "$troot/proc" "$troot/sys" "$troot/dev" 2>/dev/null || true' EXI
 mount -t proc proc "$troot/proc"
 mount -t sysfs sys "$troot/sys"
 mount --rbind /dev "$troot/dev"
+# Without this, unmounting the copy of /dev/pts propagates to the host.
+mount --make-rslave "$troot/dev"
 resolv=$(readlink "$troot/etc/resolv.conf" || true)
 rm -f "$troot/etc/resolv.conf"
 cp /etc/resolv.conf "$troot/etc/resolv.conf"
 if [ "$TEST_KERNEL" = debian ]; then
+    # The test boots the kernel directly; without .builder the unboot hooks would
+    # write the host's ESP (from its devicetree) or fail on the empty /boot/efi.
+    rm -rf "$troot/usr/lib/unboot"
     chroot "$troot" sh -c 'apt-get update -qq && apt-get install -y --no-install-recommends linux-image-arm64 && apt-get clean'
 fi
 rm -rf "$troot"/var/lib/apt/lists/*
