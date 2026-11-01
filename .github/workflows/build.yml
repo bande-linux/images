@@ -1,13 +1,20 @@
 name: build
 
+# NEEDS PORT (not needed for the launch): this workflow still builds the kernel from the legacy
+# bande-linux/linux tree and runs the image job on the self-hosted bande-kvm runner. The kernel now
+# comes from the kernel repo, published as linux-image-apple-arm64-16k (split into -image, -binary,
+# -modules and -base debs) in the Bande archive's apple component. Porting means fetching those
+# packages from the archive (as fetch-desktop.sh does for the desktop), letting build.sh take more
+# than one kernel deb, and moving the image job to a GitHub-hosted runner. See README.md.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
       kernel-ref:
+        description: Legacy bande-linux/linux branch to build the kernel from (see NEEDS PORT above)
         type: string
-        default: bande-hw/gfx-staging
+        default: bande-hw/integration
       desktop-version:
         description: The bande-desktop version the APT archive must serve; empty takes the newest
         type: string
@@ -21,7 +28,7 @@ jobs:
   kernel:
     uses: bande-linux/linux/.github/workflows/build.yml@bande-hw/ci-gfx
     with:
-      ref: ${{ inputs.kernel-ref || 'bande-hw/gfx-staging' }}
+      ref: ${{ inputs.kernel-ref || 'bande-hw/integration' }}
 
   image:
     needs: kernel
@@ -86,7 +93,7 @@ jobs:
         if: env.HAVE_TOKEN == 'true'
         with:
           repository: bande-linux/u-boot
-          ref: prep/unboot
+          ref: main
           token: ${{ secrets.SUBMODULE_TOKEN }}
           fetch-depth: 1
           path: u-boot
