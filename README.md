@@ -18,10 +18,8 @@ installer, and the tether initramfs. `main` is the trunk.
 `build.yml` runs on `v*` tags and on dispatch. It checks out `bande-linux/u-boot` at `main`
 (upstream plus the unboot commits) and `bande-linux/bootloader`.
 
-**Needs port (not needed for the launch).** `build.yml` still builds the kernel from the legacy
-`bande-linux/linux` tree (input `kernel-ref`, default `bande-hw/integration`) and runs the image job
-on the self-hosted `bande-kvm` runner. The kernel now comes from the `kernel` repo and is published
-as `linux-image-apple-arm64-16k` (split into `-image`, `-binary`, `-modules` and `-base` debs) in the
-Bande archive's `apple` component. The port: fetch those packages from the archive the way
-`fetch-desktop.sh` fetches the desktop, let `build.sh` take more than one kernel deb, and move the
-image job to a GitHub-hosted runner.
+**Broken until ported.** `build.yml` still builds the kernel from the legacy `bande-linux/linux`
+tree and runs the image job on a self-hosted runner that no longer exists. The port: take the
+kernel's `linux-image-apple-arm64-16k` packages from the archive's `apple` component (published
+once Debian testing has 7.3), the way `fetch-desktop.sh` fetches the desktop, let `build.sh` take
+more than one kernel deb, and run the image job on a GitHub-hosted runner.
