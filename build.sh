@@ -31,7 +31,7 @@ uboot|direct) ;;
 esac
 
 work=$(mktemp -d)
-trap 'umount -R "$work/root" 2>/dev/null || true; rm -rf "$work"' EXIT
+trap 'umount -R "$work/root" 2>/dev/null || true; rm -rf --one-file-system "$work"' EXIT
 root=$work/root
 mkdir -p "$out" "$work/debs" "$work/desktop"
 cp "$kernel_deb" "$scripts_debs"/bande-scripts_*.deb "$scripts_debs"/bande-usb-gadget_*.deb "$work/debs/"
@@ -50,7 +50,7 @@ bluez,libspa-0.2-bluetooth,packagekit,locales,fonts-noto-core,systemd-zram-gener
 systemd-coredump"
 [ "$BOOT_CHAIN" = uboot ] && packages="$packages,systemd-boot,systemd-boot-efi"
 
-env -u UNBOOT -u U_BOOT WORK=$work ROOTFS=$here/rootfs BOOT_CHAIN=$BOOT_CHAIN ROOT_UUID=$ROOT_UUID ESP_UUID=$esp_uuid \
+env -u UNBOOT -u U_BOOT -u SOURCE -u TARGET -u CONFIG -u DTBS -u UNBOOT_UPDATE_DISABLED WORK=$work ROOTFS=$here/rootfs BOOT_CHAIN=$BOOT_CHAIN ROOT_UUID=$ROOT_UUID ESP_UUID=$esp_uuid \
 mmdebstrap --variant=minbase --arch=arm64 --mode=root --format=directory \
     --components=main,non-free-firmware \
     --include="$(echo "$packages" | tr -d '\n')" \
