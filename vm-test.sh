@@ -51,6 +51,6 @@ check "BANDE-TEST-SSHD: .*passwordauthentication no"
 check "BANDE-TEST-WIFI: .*Bande Test:802-11-wireless"
 check "BANDE-TEST-SETUP:"
 grep -a "BANDE-TEST-SETUP:" serial.log | grep -q setup && { echo "setup data left on the ESP"; fail=1; }
-check "BANDE-TEST-SESSION: .*tester seat0"
+check "BANDE-TEST-SESSION: .*_greetd seat0"
 check "BANDE-TEST-COMPOSITOR: [0-9]"
 exit $fail

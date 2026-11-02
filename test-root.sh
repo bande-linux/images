@@ -31,7 +31,7 @@ chroot "$troot" ssh-keygen -q -t ed25519 -N '' -C bande-test -f /root/test-key
 echo vkms > "$troot/etc/modules-load.d/bande-test.conf"
 cat > "$troot/usr/local/sbin/bande-test" <<'EOT'
 #!/bin/sh
-for i in $(seq 90); do pgrep -u tester bande-composi >/dev/null && break; sleep 1; done
+for i in $(seq 90); do pgrep -u _greetd bande-composi >/dev/null && break; sleep 1; done
 sleep 3
 line() { echo "BANDE-TEST-$1: $(sh -c "$2" 2>&1 | tr -s ' ' | tr '\n' ';')"; }
 line FW 'cat /lib/firmware/vendor/bande-test.bin'
@@ -42,7 +42,7 @@ line SSHD 'sshd -T | grep -E "^(passwordauthentication|kbdinteractiveauthenticat
 line WIFI 'nmcli -t -f NAME,TYPE connection show'
 line SETUP 'ls -A /boot/efi/bande'
 line SESSION 'loginctl list-sessions --no-legend'
-line COMPOSITOR 'pgrep -u tester -a bande-composi'
+line COMPOSITOR 'pgrep -u _greetd -a bande-composi'
 line VULKAN 'vulkaninfo --summary | grep -E "deviceName|driverInfo"'
 line MESA 'dpkg-query -W -f "\${Version}" mesa-vulkan-drivers'
 echo BANDE-TEST-DONE
