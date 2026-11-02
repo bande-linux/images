@@ -15,7 +15,7 @@ if [ -n "$user" ]; then
             exit 1
         fi
     else
-        useradd -m -s /bin/bash -G sudo,video,render,input,audio,lpadmin "$user"
+        useradd -m -s /bin/bash -G sudo,video,render,input,audio "$user"
     fi
     password=$(value password)
     if [ -n "$password" ]; then

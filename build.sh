@@ -43,11 +43,11 @@ esp_uuid=$(echo "$ESP_VOLUME_ID" | sed 's/^0x//' | tr a-f A-F | sed 's/^\(....\)
 
 packages="systemd-sysv,udev,dbus,kmod,initramfs-tools,busybox,cpio,zstd,e2fsprogs,dosfstools,
 openssh-server,systemd-resolved,iproute2,iputils-ping,ca-certificates,less,nano,sudo,apt-utils,
-network-manager,wpasupplicant,wireless-regdb,avahi-daemon,libnss-mdns,
+network-manager,wpasupplicant,wireless-regdb,
 greetd,libpam-systemd,dbus-user-session,mesa-vulkan-drivers,libgbm1,vulkan-tools,
 pipewire,pipewire-pulse,pipewire-alsa,wireplumber,rtkit,alsa-utils,asahi-platform-audio,
 bluez,libspa-0.2-bluetooth,packagekit,locales,fonts-noto-core,systemd-zram-generator,systemd-oomd,
-systemd-coredump,accountsservice,cups"
+systemd-coredump,accountsservice"
 [ "$BOOT_CHAIN" = uboot ] && packages="$packages,systemd-boot,systemd-boot-efi"
 
 env -u UNBOOT -u U_BOOT -u SOURCE -u TARGET -u CONFIG -u DTBS -u UNBOOT_UPDATE_DISABLED WORK=$work ROOTFS=$here/rootfs BOOT_CHAIN=$BOOT_CHAIN ROOT_UUID=$ROOT_UUID ESP_UUID=$esp_uuid \
