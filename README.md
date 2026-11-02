@@ -6,7 +6,7 @@ installer, and the tether initramfs. `main` is the trunk.
 | Path | What it is |
 |---|---|
 | `build.sh` | builds the image with mmdebstrap from a kernel deb, the bande-scripts debs and the desktop debs |
-| `customize.sh` | the mmdebstrap customize hook: hostname, fstab, services, the boot chain (`uboot` or `direct`) |
+| `customize.sh` | the mmdebstrap customize hook: hostname, fstab, services, the boot chain (`uboot` or `direct`), and the archive's `apple` component (`bande-apple.sources` from `bande-apt-source` 1.4 or later), whatever machine builds the image |
 | `fetch-desktop.sh` | fetches and checks the desktop packages from the Bande APT archive, and the bande-linux/apps packages `bande-desktop` recommends (it fails if one is missing unless `ALLOW_MISSING_APPS=1`) |
 | `installer-data.py` | writes `installer_data.json` for the installer |
 | `rootfs/` | files copied into the root filesystem |
