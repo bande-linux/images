@@ -47,7 +47,7 @@ network-manager,wpasupplicant,wireless-regdb,avahi-daemon,libnss-mdns,
 greetd,libpam-systemd,dbus-user-session,mesa-vulkan-drivers,libgbm1,vulkan-tools,
 pipewire,pipewire-pulse,pipewire-alsa,wireplumber,rtkit,alsa-utils,asahi-platform-audio,
 bluez,libspa-0.2-bluetooth,packagekit,locales,fonts-noto-core,systemd-zram-generator,systemd-oomd,
-systemd-coredump"
+systemd-coredump,accountsservice,cups"
 [ "$BOOT_CHAIN" = uboot ] && packages="$packages,systemd-boot,systemd-boot-efi"
 
 env -u UNBOOT -u U_BOOT -u SOURCE -u TARGET -u CONFIG -u DTBS -u UNBOOT_UPDATE_DISABLED WORK=$work ROOTFS=$here/rootfs BOOT_CHAIN=$BOOT_CHAIN ROOT_UUID=$ROOT_UUID ESP_UUID=$esp_uuid \
