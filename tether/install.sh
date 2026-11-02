@@ -9,11 +9,11 @@ here=$(cd "$(dirname "$0")" && pwd)
 case "$mode" in install|remove) ;; *) echo "mode must be install or remove" >&2; exit 1 ;; esac
 grep -q "^MODE=$mode$" "$state/plan" || sed -i '' -e "s/^MODE=.*/MODE=$mode/" "$state/plan"
 src() { COPYFILE_DISABLE=1 tar --no-xattrs -c -C "$here/.." tether -C "$state" "$@"; }
-src $(cd "$state" && ls modules-*.tar.xz) | docker run --rm -i debian:trixie sh -euc '
+src $(cd "$state" && ls modules-*.tar.xz) | docker run --rm -i debian:testing sh -euc '
     mkdir /w && cd /w && tar -x
     sh tether/mkinitramfs.sh modules-*.tar.xz /w/i >/dev/null 2>&1 && cat /w/i' > "$state/tether.cpio.xz"
 if [ "$mode" = install ]; then
-    src image.zip firmware.cpio setup plan | docker run --rm -i debian:trixie sh -euc '
+    src image.zip firmware.cpio setup plan | docker run --rm -i debian:testing sh -euc '
         mkdir /w /o && cd /w && tar -x
         sh tether/payload.sh image.zip firmware.cpio setup plan /o >&2
         cd /o && tar -c payload.cpio image' | tar -x -C "$state"

@@ -13,7 +13,7 @@ desktop_debs=$(realpath "$3")
 out=$(realpath "$4")
 here=$(cd "$(dirname "$0")" && pwd)
 
-: "${SUITE:=trixie}"
+: "${SUITE:=testing}"
 : "${MIRROR:=http://deb.debian.org/debian}"
 : "${BOOT_CHAIN:=uboot}"
 : "${NAME:=bande-debian-13-desktop}"
@@ -54,12 +54,9 @@ env -u UNBOOT -u U_BOOT -u SOURCE -u TARGET -u CONFIG -u DTBS -u UNBOOT_UPDATE_D
 mmdebstrap --variant=minbase --arch=arm64 --mode=root --format=directory \
     --components=main,non-free-firmware \
     --include="$(echo "$packages" | tr -d '\n')" \
-    --setup-hook="mkdir -p \"\$1/etc/apt/preferences.d\" && cp \"$here/rootfs/etc/apt/preferences.d/bande-mesa\" \"\$1/etc/apt/preferences.d/\"" \
     --customize-hook="$here/customize.sh \"\$1\"" \
     "$SUITE" "$root" "deb $MIRROR $SUITE main non-free-firmware" \
-    "deb $MIRROR $SUITE-updates main non-free-firmware" \
-    "deb http://security.debian.org/debian-security $SUITE-security main non-free-firmware" \
-    "deb $MIRROR $SUITE-backports main"
+    "deb http://security.debian.org/debian-security $SUITE-security main non-free-firmware"
 
 mkdir -p "$work/pkg"
 mv "$root/boot/efi" "$work/pkg/esp"

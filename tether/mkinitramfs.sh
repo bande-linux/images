@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs in debian:trixie. $1: modules tarball from the kernel job, $2: output.
+# Runs in debian:testing. $1: modules tarball from the kernel job, $2: output.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 apt-get update -qq

@@ -68,7 +68,7 @@ jobs:
         if: env.HAVE_TOKEN == 'true'
         run: |
           self=$(grep -o 'containers/[0-9a-f]\{64\}' /proc/self/mountinfo | head -1 | cut -d/ -f2)
-          docker run --rm --volumes-from "$self" -w "$PWD" -e DESKTOP_VERSION debian:trixie sh -euc '
+          docker run --rm --volumes-from "$self" -w "$PWD" -e DESKTOP_VERSION debian:testing sh -euc '
             apt-get update -qq
             apt-get install -y -qq --no-install-recommends ca-certificates curl gpg gpgv xz-utils >/dev/null
             ./fetch-desktop.sh apt/conf/archive-key.asc desktop-debs "$DESKTOP_VERSION"'
@@ -102,7 +102,7 @@ jobs:
         if: env.HAVE_TOKEN == 'true'
         run: |
           mkdir -p debs
-          git -C system-scripts archive --prefix=src/ HEAD | docker run --rm -i debian:trixie sh -euc '
+          git -C system-scripts archive --prefix=src/ HEAD | docker run --rm -i debian:testing sh -euc '
             apt-get update -qq
             apt-get install -y -qq --no-install-recommends build-essential debhelper >/dev/null
             tar -x -C /tmp && cd /tmp/src && dpkg-buildpackage -us -uc -b >&2
@@ -122,7 +122,7 @@ jobs:
             -e BOOT_CHAIN -e TEST_ROOT=1 -e KDEB="$kdeb" \
             -e SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) \
             -e UNBOOT=bootloader/build/unboot.bin -e U_BOOT=u-boot/u-boot-nodtb.bin \
-            debian:trixie sh -euc '
+            debian:testing sh -euc '
               apt-get update -qq
               apt-get install -y -qq --no-install-recommends mmdebstrap e2fsprogs zip python3 \
                 dosfstools mtools fdisk cpio ca-certificates >/dev/null

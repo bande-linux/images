@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs in debian:trixie. $1: image zip, $2: vendor firmware cpio, $3: setup dir, $4: plan, $5: output dir.
+# Runs in debian:testing. $1: image zip, $2: vendor firmware cpio, $3: setup dir, $4: plan, $5: output dir.
 # Writes payload.cpio (the install payload) and, in image/, the kernel, initrd and device tree
 # that boot.sh boots, so the installed modules always match the kernel.
 set -eu

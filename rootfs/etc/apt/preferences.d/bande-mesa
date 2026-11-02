@@ -1,3 +1,0 @@
-Package: src:mesa
-Pin: release n=trixie-backports
-Pin-Priority: 500
