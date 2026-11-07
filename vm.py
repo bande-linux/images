@@ -105,6 +105,17 @@ class Machine:
     def screenshot(self, path):
         self.command("screendump", filename=path, format="png")
 
+    def click(self, x, y, width=1280, height=800):
+        axes = [
+            {"type": "abs", "data": {"axis": "x", "value": x * 32767 // width}},
+            {"type": "abs", "data": {"axis": "y", "value": y * 32767 // height}},
+        ]
+        self.command("input-send-event", events=axes)
+        time.sleep(0.5)
+        for down in (True, False):
+            self.command("input-send-event", events=[{"type": "btn", "data": {"button": "left", "down": down}}])
+            time.sleep(0.2)
+
     def keys(self, *names):
         events = [{"type": "qcode", "data": name} for name in names]
         self.command("send-key", keys=events)
