@@ -43,7 +43,7 @@ generic-amd64)
 esac
 
 name=bande-debian-$SUITE-$target
-work=$(mktemp -d)
+work=$(mktemp -d -p /var/tmp)
 cleanup() {
     "$here/rootfs/usr/libexec/bande-install" release "$work/target" 2>/dev/null || true
     [ -z "${loop:-}" ] || losetup -d "$loop" 2>/dev/null || true
