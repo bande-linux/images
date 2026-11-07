@@ -14,6 +14,7 @@ initramfs for the Mac mini. `main` is the trunk.
 | `rootfs/`, `rootfs-apple/` | files copied into the system, on all targets and on the Mac |
 | `rootfs/usr/libexec/bande-install` | installs and reinstalls: partitions, LUKS2, btrfs, boot entries |
 | `rootfs/usr/libexec/bande-first-run` | the root steps of the first-run assistant, usable only until setup is finished |
+| `mkroot.sh`, `rollback-test.sh` | lay a root out as btrfs system versions and prove rollback under QEMU, without LUKS |
 | `vm.py`, `vm-test.py` | boot an image under QEMU and prove install and first start |
 | `tether/` | installs, removes and boots the image on the mini over USB with a tether initramfs |
 

@@ -8,7 +8,7 @@ zip=$(realpath "$1") fw=$(realpath "$2") setup=$(realpath "$3") plan=$(realpath 
 # Without a password the user can log in with a key but never use sudo, and root stays locked.
 [ ! -s "$setup/user" ] || [ -s "$setup/password" ] || { echo "$setup has a user but no password" >&2; exit 1; }
 apt-get update -qq
-apt-get install -y -qq --no-install-recommends unzip mtools dosfstools e2fsprogs zstd cpio gcc libc6-dev linux-libc-dev >/dev/null
+apt-get install -y -qq --no-install-recommends unzip mtools dosfstools zstd cpio gcc libc6-dev linux-libc-dev >/dev/null
 w=$(mktemp -d)
 cd "$w"
 unzip -q "$zip"
@@ -17,10 +17,8 @@ mkfs.vfat -C -F 32 -S "$(. "$plan"; echo "$SECTOR_SIZE")" -n EFI -i "$(. "$plan"
 mkdir -p espfw/vendorfw espfw/bande/setup
 cp "$fw" espfw/vendorfw/firmware.cpio
 cp "$setup"/* espfw/bande/setup/
+cp drmgrab espfw/bande/drmgrab
 mcopy -s -i esp.img esp/* espfw/vendorfw espfw/bande ::/
-printf '%s\n' "write drmgrab /usr/local/bin/drmgrab" "sif /usr/local/bin/drmgrab mode 0100755" |
-    debugfs -w root.img -f - >/dev/null 2>&1
-e2fsck -fn root.img >/dev/null
 mkdir -p p/payload
 zstd -T0 -10 -q esp.img -o p/payload/esp.img.zst
 zstd -T0 -10 -q root.img -o p/payload/root.img.zst
@@ -28,10 +26,10 @@ cp "$plan" p/payload/plan
 cp "$here/run" p/payload/run
 chmod 755 p/payload/run
 (cd p && find . | cpio -o -H newc -R 0:0 --quiet) > "$out/payload.cpio"
-kver=$(basename esp/debian/*)
+entry=esp/loader/entries/bande-1.conf
 mkdir -p "$out/image"
-cp "esp/debian/$kver/initrd.img-$kver" "$out/image/initrd.img"
-cp "esp/debian/$kver/linux" "$out/image/Image.gz"
-debugfs -R "dump /usr/lib/linux-image-$kver/apple/t8112-j473.dtb $out/image/t8112-j473.dtb" root.img >/dev/null 2>&1
+cp "esp$(sed -n 's/^initrd //p' "$entry")" "$out/image/initrd.img"
+cp "esp$(sed -n 's/^linux //p' "$entry")" "$out/image/Image.gz"
+cp esp/bande/t8112-j473.dtb "$out/image/t8112-j473.dtb"
 [ -s "$out/image/t8112-j473.dtb" ]
 rm -rf "$w"

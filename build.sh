@@ -25,7 +25,7 @@ export SOURCE_DATE_EPOCH
 case "$target" in
 apple)
     arch=arm64
-    extra=bande-os-apple,bande-scripts,bande-usb-gadget,bande-nvram,bande-bless,asahi-platform-audio
+    extra=bande-system,bande-os-apple,bande-scripts,bande-usb-gadget,bande-nvram,bande-bless,asahi-platform-audio
     [ -n "$UNBOOT" ] && [ -n "$U_BOOT" ] && [ -n "$LOCAL_DEBS" ] || {
         echo "apple needs UNBOOT, U_BOOT and LOCAL_DEBS with the bande-scripts and nvram packages"
         exit 1
@@ -33,11 +33,11 @@ apple)
     ;;
 generic-arm64)
     arch=arm64
-    extra=linux-image-arm64,firmware-linux-free,firmware-misc-nonfree,firmware-realtek,firmware-iwlwifi,firmware-atheros,firmware-brcm80211,firmware-mediatek
+    extra=bande-system,linux-image-arm64,firmware-linux-free,firmware-misc-nonfree,firmware-realtek,firmware-iwlwifi,firmware-atheros,firmware-brcm80211,firmware-mediatek
     ;;
 generic-amd64)
     arch=amd64
-    extra=linux-image-amd64,firmware-linux-free,firmware-misc-nonfree,firmware-realtek,firmware-iwlwifi,firmware-atheros,firmware-brcm80211,firmware-mediatek,firmware-amd-graphics,firmware-intel-graphics,firmware-sof-signed,amd64-microcode,intel-microcode
+    extra=bande-system,linux-image-amd64,firmware-linux-free,firmware-misc-nonfree,firmware-realtek,firmware-iwlwifi,firmware-atheros,firmware-brcm80211,firmware-mediatek,firmware-amd-graphics,firmware-intel-graphics,firmware-sof-signed,amd64-microcode,intel-microcode
     ;;
 *) usage ;;
 esac
@@ -59,7 +59,7 @@ gpg --batch --quiet --dearmor < "$key" > "$work/archive.gpg"
 
 packages="systemd-sysv,udev,dbus,kmod,initramfs-tools,busybox,cpio,zstd,
 systemd-boot,systemd-boot-efi,systemd-resolved,systemd-oomd,systemd-zram-generator,systemd-coredump,
-btrfs-progs,cryptsetup,cryptsetup-bin,cryptsetup-initramfs,libx11-data,squashfs-tools,dosfstools,e2fsprogs,fdisk,parted,polkitd,pkexec,
+btrfs-progs,linux-base,cryptsetup,cryptsetup-bin,cryptsetup-initramfs,libx11-data,squashfs-tools,dosfstools,e2fsprogs,fdisk,parted,polkitd,pkexec,
 iproute2,iputils-ping,ca-certificates,less,nano,sudo,apt-utils,locales,console-setup,
 network-manager,wpasupplicant,wireless-regdb,
 libpam-systemd,dbus-user-session,mesa-vulkan-drivers,libgbm1,vulkan-tools,

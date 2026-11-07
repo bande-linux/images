@@ -32,8 +32,11 @@ write_system() {
     mkdir -p "$target/top"
     mount -o "$options" "/dev/mapper/$mapper" "$target/top"
     mkdir -p "$target/top/@system"
-    local id=1
-    while [ -e "$target/top/@system/$id" ]; do id=$((id + 1)); done
+    local id=1 why=install
+    while [ -e "$target/top/@system/$id" ]; do
+        id=$((id + 1))
+        why=reinstall
+    done
     btrfs -q subvolume create "$target/top/@system/$id"
     local name
     for name in $subvolumes; do
@@ -44,6 +47,7 @@ write_system() {
     local system=$target/top/@system/$id
     mkdir -p "$system/.snapshots"
     chmod 0700 "$system/.snapshots"
+    printf 'created=%s\nwhy=%s\n' "$(date +%s)" "$why" > "$target/top/@system/$id.info"
     if [ "$id" = 1 ]; then
         cp -a "$system/var/log/." "$target/top/@var-log/"
         cp -a "$system/var/cache/." "$target/top/@var-cache/"
@@ -92,19 +96,14 @@ options boot=bande-live bande.image=PARTUUID=$image_partuuid quiet
 EOT
     fi
     chroot "$system" update-initramfs -u -k "$version" >/dev/null
-    local hash
-    hash=$(cat "$system/boot/vmlinuz-$version" "$system/boot/initrd.img-$version" | sha256sum | cut -c1-16)
-    mkdir -p "$esp/bande/$hash"
-    cp "$system/boot/vmlinuz-$version" "$esp/bande/$hash/linux"
-    cp "$system/boot/initrd.img-$version" "$esp/bande/$hash/initrd"
-    cat > "$esp/loader/entries/bande-$id.conf" <<EOT
-title Bande
-sort-key bande
-version $id
-linux /bande/$hash/linux
-initrd /bande/$hash/initrd
-options root=UUID=$fs_uuid rw quiet rootflags=subvol=@system/$id,$options
-EOT
+    if [ "$id" = 1 ]; then
+        chroot "$system" env BANDE_ESP=/boot/efi bande-system first-entry /
+    else
+        chroot "$system" env BANDE_ESP=/boot/efi bande-system adopt "$id"
+    fi
+    if [ -d "$system/usr/lib/linux-image-$version/apple" ]; then
+        cp "$system/usr/lib/linux-image-$version/apple/t8112-j473.dtb" "$esp/bande/"
+    fi
     if [ -x "$system/etc/kernel/postinst.d/zz-update-unboot" ]; then
         mkdir -p "$esp/unboot"
         touch "$esp/.builder"

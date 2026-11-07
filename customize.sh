@@ -15,6 +15,8 @@ if [ "$TARGET" = apple ]; then
 fi
 mkdir -p "$root/etc/kernel" "$root/boot/efi"
 echo debian > "$root/etc/kernel/entry-token"
+echo layout=bande > "$root/etc/kernel/install.conf"
+echo btrfs >> "$root/etc/initramfs-tools/modules"
 
 install -D -m 644 "$WORK/archive.gpg" "$root/etc/apt/keyrings/bande-image.gpg"
 echo "deb [signed-by=/etc/apt/keyrings/bande-image.gpg] $ARCHIVE rolling main" > "$root/etc/apt/sources.list.d/bande-image.list"

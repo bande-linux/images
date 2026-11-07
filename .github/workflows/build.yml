@@ -58,7 +58,6 @@ jobs:
           apt-get install -y -qq --no-install-recommends git sudo ca-certificates
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v7
-        if: matrix.target == 'apple'
         with:
           name: apple-parts
           path: apple-parts
@@ -69,6 +68,10 @@ jobs:
           git config --global --add safe.directory "$PWD"
           if [ "${{ matrix.target }}" = apple ]; then
             export LOCAL_DEBS=$PWD/apple-parts/debs UNBOOT=$PWD/apple-parts/unboot.bin U_BOOT=$PWD/apple-parts/u-boot-nodtb.bin
+          else
+            mkdir generic-debs
+            cp apple-parts/debs/bande-system_*.deb generic-debs/
+            export LOCAL_DEBS=$PWD/generic-debs
           fi
           ./build.sh "${{ matrix.target }}" archive-key.asc out
       - name: Prove install and first start in QEMU
