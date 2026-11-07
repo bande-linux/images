@@ -160,9 +160,11 @@ def reinstall_flow(args, usb, disk, machine_args):
         machine.stop()
     machine = vm.Machine(args.arch, [{"path": disk}], **machine_args)
     try:
+        machine.wait("Password: ", 300)
+        machine.serial.sendall(b"testpass\n")
         login_shell(machine)
         boot_finished(machine)
-        print(machine.run("cat /proc/cmdline; ls -la /home/tester/keep-me; btrfs subvolume list / | head; id tester"))
+        print(machine.run("cat /proc/cmdline; ls -la /home/tester/keep-me; btrfs subvolume list / | head; id tester; ls -A /var/lib/bande; bootctl list --no-pager | grep -E ' id:|title:'"))
     finally:
         machine.stop()
 

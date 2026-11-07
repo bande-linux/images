@@ -152,7 +152,7 @@ install_disk() {
     local disk=$1 live
     live=$(live_image)
     [ -b "$disk" ] || fail "No such disk."
-    [ "/dev/$(lsblk -no PKNAME "$live")" != "$disk" ] || fail "This disk holds the running system."
+    [ "/dev/$(lsblk -ndo PKNAME "$live")" != "$disk" ] || fail "This disk holds the running system."
     trap release EXIT
     mkdir -p "$target/esp"
     step partition
@@ -181,12 +181,14 @@ EOT
 
 find_esp() {
     local partuuid disk
-    partuuid=$(tr -d '\0' < /proc/device-tree/chosen/bande,efi-system-partition 2>/dev/null || true)
+    partuuid=
+    [ ! -e /proc/device-tree/chosen/bande,efi-system-partition ] ||
+        partuuid=$(tr -d '\0' < /proc/device-tree/chosen/bande,efi-system-partition)
     if [ -n "$partuuid" ]; then
         readlink -f "/dev/disk/by-partuuid/$partuuid"
         return
     fi
-    disk=/dev/$(lsblk -no PKNAME "$1" | head -1)
+    disk=/dev/$(lsblk -ndo PKNAME "$1")
     sfdisk -d "$disk" | awk -F'[ :]+' '/type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B/ { print $1; exit }'
 }
 
