@@ -1,6 +1,20 @@
-import json, sys
+import hashlib, json, os, sys
 
-name, recovery_size, root_size, volume_id = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+name, recovery_size, root_size, volume_id, package = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4], sys.argv[5]
+
+def digest(path):
+    sha = hashlib.sha256()
+    with open(path, "rb") as fd:
+        for block in iter(lambda: fd.read(1 << 20), b""):
+            sha.update(block)
+    return sha.hexdigest()
+
+digests = {}
+for top, _, files in os.walk(package):
+    for file in files:
+        path = os.path.join(top, file)
+        if not os.path.islink(path):
+            digests[os.path.relpath(path, package)] = digest(path)
 
 print(json.dumps({
     "os_list": [
@@ -11,6 +25,7 @@ print(json.dumps({
             "next_object": "unboot/boot.bin",
             "package": f"{name}.zip",
             "supported_fw": ["13.5"],
+            "sha256": dict(sorted(digests.items())),
             "partitions": [
                 {
                     "name": "EFI",

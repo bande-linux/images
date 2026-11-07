@@ -74,6 +74,20 @@ jobs:
             export LOCAL_DEBS=$PWD/generic-debs
           fi
           ./build.sh "${{ matrix.target }}" archive-key.asc out
+      - name: Sign the installer data with the archive key
+        if: matrix.target == 'apple'
+        env:
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+        run: |
+          [ -n "$APT_SIGNING_KEY" ] || { echo "::error::APT_SIGNING_KEY is not set, so the Mac image cannot be signed"; exit 1; }
+          GNUPGHOME=$(mktemp -d)
+          export GNUPGHOME
+          printf '%s\n' "$APT_SIGNING_KEY" | gpg --batch --quiet --import
+          gpg --batch --quiet --digest-algo SHA512 --detach-sign -o out/installer_data.json.sig out/installer_data.json
+          gpg --batch --quiet --no-default-keyring --keyring "$GNUPGHOME/check.kbx" --import archive-key.asc
+          gpg --batch --quiet --no-default-keyring --keyring "$GNUPGHOME/check.kbx" --verify out/installer_data.json.sig out/installer_data.json
+          gpgconf --kill all
+          rm -rf "$GNUPGHOME"
       - name: Prove install and first start in QEMU
         if: matrix.target != 'apple'
         run: ./vm-test.py "${{ matrix.arch }}" out/bande-debian-testing-${{ matrix.target }}.img vm
@@ -84,4 +98,5 @@ jobs:
             out/*.img
             out/*.zip
             out/installer_data.json
+            out/installer_data.json.sig
           compression-level: 6

@@ -1,8 +1,7 @@
 # Bande images
 
 The Bande OS image: Debian testing with the Bande desktop, as a read-only system image that serves
-as the USB installer, the recovery environment and the source for reinstalling, plus the tether
-initramfs for the Mac mini. `main` is the trunk.
+as the USB installer, the recovery environment and the source for reinstalling. `main` is the trunk.
 
 | Path | What it is |
 |---|---|
@@ -16,7 +15,7 @@ initramfs for the Mac mini. `main` is the trunk.
 | `rootfs/usr/libexec/bande-first-run` | the root steps of the first-run assistant, usable only until setup is finished |
 | `mkroot.sh`, `rollback-test.sh` | lay a root out as btrfs system versions and prove rollback under QEMU, without LUKS |
 | `vm.py`, `vm-test.py` | boot an image under QEMU and prove install and first start |
-| `tether/` | boots the mini over USB with a tether initramfs; its install path still expects a plain root image and does not take the LUKS image |
+| `tether/` | boots the mini's current ext4 system over USB through the m1n1 proxy, for debugging |
 
 ## Building
 
@@ -30,4 +29,7 @@ assistant, on the machine.
 
 ## CI
 
-`build.yml` runs on `v*` tags and on dispatch, on GitHub-hosted runners.
+`build.yml` runs on `v*` tags and on dispatch, on GitHub-hosted runners. It signs the Mac image's
+`installer_data.json` with the archive key (secret `APT_SIGNING_KEY`, as in the apt repository);
+that file lists the SHA-256 of every file in the image zip, and the installer refuses data
+without a valid signature and any file whose digest differs.

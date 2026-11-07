@@ -103,7 +103,7 @@ if [ "$target" = apple ]; then
     (cd "$work/pkg" && find esp recovery.img root.img -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} + &&
         rm -f "$out/$name.zip" && find esp recovery.img root.img | LC_ALL=C sort | zip -q -X -1 -@ "$out/$name.zip")
     python3 "$here/installer-data.py" "$name" "$recovery_size" "$((root_size * 1024 * 1024))" "$ESP_VOLUME_ID" \
-        > "$out/installer_data.json"
+        "$work/pkg" > "$out/installer_data.json"
 else
     "$here/mkusb.sh" "$out/$name.img" "$recovery" "$root"
 fi
