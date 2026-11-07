@@ -122,10 +122,10 @@ def first_run_flow(args, disk, machine_args):
 def encrypted_boot_flow(args, disk, machine_args):
     machine = vm.Machine(args.arch, [{"path": disk}], **machine_args)
     try:
-        time.sleep(45)
+        machine.drain(60)
         machine.screenshot(os.path.join(args.work, "unlock-prompt.png"))
         machine.type("wrongpass\n")
-        time.sleep(15)
+        machine.drain(20)
         machine.screenshot(os.path.join(args.work, "unlock-wrong.png"))
         machine.type("testpass\n")
         login_shell(machine)
@@ -213,6 +213,7 @@ def main():
     parser.add_argument("--tcg", action="store_true")
     parser.add_argument("--mac", action="store_true")
     parser.add_argument("--install-only", action="store_true")
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     os.makedirs(args.work, exist_ok=True)
     machine_args = {"kvm": not args.tcg and os.access("/dev/kvm", os.W_OK)}
@@ -222,8 +223,11 @@ def main():
     if args.install_only:
         install_only_flow(args, machine_args)
         return 0
-    usb, disk = install_flow(args, machine_args)
-    first_run_flow(args, disk, machine_args)
+    if args.resume:
+        usb, disk = os.path.join(args.work, "usb.qcow2"), os.path.join(args.work, "disk.qcow2")
+    else:
+        usb, disk = install_flow(args, machine_args)
+        first_run_flow(args, disk, machine_args)
     encrypted_boot_flow(args, disk, machine_args)
     reinstall_flow(args, usb, disk, machine_args)
     return 0

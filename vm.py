@@ -83,6 +83,13 @@ class Machine:
             if ready:
                 self.buffer += self.serial.recv(65536)
 
+    def drain(self, seconds):
+        deadline = time.monotonic() + seconds
+        while (left := deadline - time.monotonic()) > 0:
+            ready, _, _ = select.select([self.serial], [], [], left)
+            if ready:
+                self.buffer += self.serial.recv(65536)
+
     def run(self, command, timeout=600):
         marker = f"E{time.monotonic_ns()}"
         self.buffer = b""
