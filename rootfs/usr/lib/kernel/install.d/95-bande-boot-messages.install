@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+command=$1
+version=$2
+[ "${KERNEL_INSTALL_LAYOUT:-}" = bls ] || exit 0
+entries="$KERNEL_INSTALL_BOOT_ROOT/loader/entries"
+entry="$entries/$KERNEL_INSTALL_ENTRY_TOKEN-$version.conf"
+messages="$entries/messages-$KERNEL_INSTALL_ENTRY_TOKEN-$version.conf"
+case "$command" in
+add)
+    [ -e "$entry" ] || exit 0
+    sed -E -e 's/^title .*/& (boot messages)/' \
+        -e '/^options/ s/ (quiet|loglevel=[0-9]+|udev\.log_level=[0-9]+|vt\.global_cursor_default=[0-9]+|fbcon=logo-pos:[a-z]+)//g' \
+        "$entry" > "$messages"
+    ;;
+remove)
+    rm -f "$messages"
+    ;;
+esac

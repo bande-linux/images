@@ -21,13 +21,14 @@ mkdir -p "$root/boot/efi/unboot" "$root/usr/lib/unboot" "$root/etc/kernel"
 touch "$root/boot/efi/.builder"
 [ -e "$WORK/unboot.bin" ] && cp "$WORK/unboot.bin" "$root/usr/lib/unboot/"
 [ -e "$WORK/u-boot-nodtb.bin" ] && cp "$WORK/u-boot-nodtb.bin" "$root/usr/lib/unboot/"
-echo "root=UUID=$ROOT_UUID rw" > "$root/etc/kernel/cmdline"
+echo "root=UUID=$ROOT_UUID rw quiet loglevel=3 udev.log_level=3 vt.global_cursor_default=0 fbcon=vc:1-6 fbcon=logo-pos:center" > "$root/etc/kernel/cmdline"
 echo debian > "$root/etc/kernel/entry-token"
 
 mount --bind "$root/boot/efi" "$root/boot/efi"
 if [ "$BOOT_CHAIN" = uboot ]; then
     SYSTEMD_RELAX_ESP_CHECKS=1 chroot "$root" bootctl install --esp-path=/boot/efi \
         --no-variables --entry-token=literal:debian
+    printf 'timeout 0\ndefault debian-*\nconsole-mode keep\n' > "$root/boot/efi/loader/loader.conf"
 else
     # unboot decompresses gzip but not zstd, and an uncompressed cpio would end its payload list.
     echo COMPRESS=gzip > "$root/etc/initramfs-tools/conf.d/unboot-direct"
