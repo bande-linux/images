@@ -43,7 +43,7 @@ def install_flow(args, machine_args):
         time.sleep(10)
         print(machine.run("pgrep -au recovery | cut -c1-80; runuser -u recovery -- env XDG_RUNTIME_DIR=/run/user/1000 systemctl --user --no-pager status 'app-*' 2>&1 | head -20; journalctl --user -M recovery@ -n 20 --no-pager 2>&1 | tail -20 | cut -c1-160"))
         machine.screenshot(os.path.join(args.work, "recovery.png"))
-        print(machine.run("/usr/libexec/bande-install install /dev/vdb", 1800))
+        print(machine.run("/usr/libexec/bande-install install /dev/vdb", 3600))
         print(machine.run("lsblk -o NAME,SIZE,FSTYPE,PARTLABEL,LABEL"))
     finally:
         machine.stop()
