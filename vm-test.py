@@ -8,7 +8,6 @@ import time
 import vm
 
 
-ERASE = (485, 453)
 MAC_RECOVERY_PARTUUID = "5e6f7a8b-1c2d-4e3f-8a9b-0c1d2e3f4a5b"
 
 
@@ -44,20 +43,7 @@ def install_flow(args, machine_args):
         time.sleep(10)
         print(machine.run("pgrep -au recovery | cut -c1-80; runuser -u recovery -- env XDG_RUNTIME_DIR=/run/user/1000 systemctl --user --no-pager status 'app-*' 2>&1 | head -20; journalctl --user -M recovery@ -n 20 --no-pager 2>&1 | tail -20 | cut -c1-160"))
         machine.screenshot(os.path.join(args.work, "recovery.png"))
-        machine.click(640, 173)
-        machine.drain(5)
-        machine.screenshot(os.path.join(args.work, "recovery-disks.png"))
-        machine.click(640, 175)
-        machine.drain(2)
-        machine.screenshot(os.path.join(args.work, "recovery-disk-chosen.png"))
-        machine.click(ERASE[0], ERASE[1])
-        machine.drain(10)
-        machine.screenshot(os.path.join(args.work, "recovery-installing.png"))
-        for _ in range(360):
-            if machine.run("test -e /dev/vdb3 && cryptsetup luksDump /dev/vdb3 >/dev/null 2>&1 && ! pgrep -x bande-install >/dev/null && echo finished || true").strip():
-                break
-            machine.drain(10)
-        machine.screenshot(os.path.join(args.work, "recovery-finished.png"))
+        print(machine.run("/usr/libexec/bande-install install /dev/vdb", 3600))
         print(machine.run("lsblk -o NAME,SIZE,FSTYPE,PARTLABEL,LABEL"))
     finally:
         machine.stop()
