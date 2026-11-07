@@ -24,7 +24,7 @@ chroot "$root" sh -c 'apt-get update -qq && apt-get install -y --no-install-reco
 rm -f "$root/etc/apt/sources.list.d/bande-image.list" "$root/etc/apt/keyrings/bande-image.gpg"
 [ "$TARGET" = apple ] && cp "$root/usr/share/bande-apt-source/bande-apple.sources" "$root/etc/apt/sources.list.d/"
 chroot "$root" apt-get update -qq
-extra=$(echo "$EXTRA" | tr ',' ' ')
+extra="bande-recovery-tools $(echo "$EXTRA" | tr "," " ")"
 local_debs=$(cd "$root/tmp/local" && ls | sed 's|^|/tmp/local/|' | tr '\n' ' ')
 apps=$(chroot "$root" apt-cache depends bande-desktop | sed -n 's/^ *Recommends: \(bande-[a-z0-9-]*\)$/\1/p' | sort -u | tr '\n' ' ')
 missing=$(chroot "$root" apt-cache depends bande-desktop | sed -n 's/^ *Recommends: <\(bande-[a-z0-9-]*\)>$/\1/p' | tr '\n' ' ')

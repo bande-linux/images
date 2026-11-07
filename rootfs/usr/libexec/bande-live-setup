@@ -3,3 +3,4 @@ set -eu
 useradd -m -c Recovery -s /bin/bash -G sudo,video,render,input,audio recovery
 passwd -d recovery
 rm -f /var/lib/bande/setup-pending
+runuser -u recovery -- sh -c 'mkdir -p ~/.config/autostart && cp /usr/share/applications/org.bande.RecoveryTools.desktop ~/.config/autostart/'
