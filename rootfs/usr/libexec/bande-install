@@ -280,7 +280,11 @@ reinstall) reinstall ;;
 needs-password) needs_password ;;
 backups) /usr/libexec/bande-backup-restore list ;;
 restore-backup) restore_backup "$2" "$3" "$4" ;;
-versions) system_tool bande-system list | sed 's/^/version /' ;;
+versions)
+    system_tool bande-system list | while IFS=$'\t' read -r id created why _; do
+        printf 'version %s\t%s\t%s\n' "$id" "$(date -d "@$created" '+%Y-%m-%d %H:%M')" "$why"
+    done
+    ;;
 restore) system_tool bande-system restore "$2" ;;
 image) image "$2" "$3" "$4" ;;
 release)
