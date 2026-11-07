@@ -11,7 +11,7 @@ import time
 
 
 class Machine:
-    def __init__(self, arch, disks, cmdline="", memory=4096, kvm=True):
+    def __init__(self, arch, disks, cmdline="", memory=4096, kvm=True, firmware_framebuffer=False):
         self.work = tempfile.mkdtemp(prefix="bande-vm-")
         self.arch = arch
         self.console = "ttyAMA0" if arch == "arm64" else "ttyS0"
@@ -33,6 +33,7 @@ class Machine:
             "-smp", "4", "-m", str(memory),
             "-drive", f"if=pflash,format=raw,readonly=on,file={code}",
             "-drive", f"if=pflash,format=raw,file={vars_file}",
+            *(["-device", "ramfb"] if firmware_framebuffer else []),
             "-device", "virtio-gpu-pci", "-device", "qemu-xhci", "-device", "usb-kbd", "-device", "usb-tablet",
             "-netdev", "user,id=net0", "-device", "virtio-net-pci,netdev=net0,romfile=",
             "-smbios", f"type=11,value=io.systemd.boot.kernel-cmdline-extra={extra}",

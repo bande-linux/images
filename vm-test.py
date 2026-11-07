@@ -122,6 +122,18 @@ def first_run_flow(args, disk, machine_args):
 def encrypted_boot_flow(args, disk, machine_args):
     machine = vm.Machine(args.arch, [{"path": disk}], **machine_args)
     try:
+        machine.wait("Password: ", 300)
+        machine.serial.sendall(b"wrongpass\n")
+        machine.wait("Password: ", 120)
+        print("console prompt: a wrong password asks again")
+        machine.serial.sendall(b"testpass\n")
+        login_shell(machine)
+        boot_finished(machine)
+        print(machine.run("cat /run/bande-disk-encryption/status; /usr/libexec/bande-disk-encryption status; loginctl list-sessions --no-legend; cryptsetup luksDump /dev/disk/by-label/BANDE-ROOT | grep -E '^  [0-9]: luks2|Tokens' | head"))
+    finally:
+        machine.stop()
+    machine = vm.Machine(args.arch, [{"path": disk}], firmware_framebuffer=True, **machine_args)
+    try:
         machine.drain(60)
         machine.screenshot(os.path.join(args.work, "unlock-prompt.png"))
         machine.type("wrongpass\n")
@@ -130,10 +142,10 @@ def encrypted_boot_flow(args, disk, machine_args):
         machine.type("testpass\n")
         login_shell(machine)
         boot_finished(machine)
-        wait_for(machine, "pgrep -u tester bande-composi")
-        time.sleep(10)
+        wait_for(machine, "pgrep -u tester bande-composi", 45)
+        machine.drain(10)
         machine.screenshot(os.path.join(args.work, "after-unlock.png"))
-        print(machine.run("cat /run/bande-disk-encryption/status; /usr/libexec/bande-disk-encryption status; loginctl list-sessions --no-legend; cryptsetup luksDump /dev/disk/by-label/BANDE-ROOT | grep -E 'Tokens|Keyslots' -A3 | head"))
+        print(machine.run("cat /run/bande-disk-encryption/status; loginctl list-sessions --no-legend"))
     finally:
         machine.stop()
 
