@@ -346,6 +346,31 @@ scenario_units() {
     expect "a dpkg run leaves the pending restore" 1 "$(guest "grep -c 'pending' /run/bande/versions")"
 }
 
+scenario_reinstall() {
+    note "a new tree adopted from outside it boots next and keeps accounts and Wi-Fi"
+    fresh_disk
+    guest 'mkdir -p /run/t; mount -o subvolid=5 "$(findmnt -no SOURCE / | sed "s/\[.*//")" /run/t
+        btrfs -q subvolume snapshot /run/t/@system/1 /run/t/@system/7
+        printf "created=%s\nwhy=reinstall\n" "$(date +%s)" > /run/t/@system/7.info
+        echo tester:changed | chpasswd; useradd -m -G video second
+        mkdir -p /etc/NetworkManager/system-connections; echo wifi > /etc/NetworkManager/system-connections/home
+        R=/run/t/@system/7; mount --bind /boot/efi $R/boot/efi; for d in dev proc sys; do mount --bind /$d $R/$d; done
+        chroot $R env BANDE_ESP=/boot/efi bande-system adopt 7
+        for d in boot/efi dev proc sys; do umount $R/$d; done; umount /run/t; sync'
+    local password
+    password=$(guest "grep ^tester: /etc/shadow | cut -d: -f2")
+    expect "it boots next" 1 "$(guest "ls /boot/efi/loader/entries | grep -c '^bande-2+3.conf$'")"
+    guest systemctl reboot || true
+    sleep 5
+    wait_rollback /@system/7
+    wait_blessed >/dev/null
+    expect "password carried" "$password" "$(guest "grep ^tester: /etc/shadow | cut -d: -f2")"
+    expect "account carried" second "$(guest 'id -un second')"
+    expect "wifi carried" wifi "$(guest cat /etc/NetworkManager/system-connections/home)"
+    expect "marked good" 1 "$(guest "ls /boot/efi/loader/entries | grep -c '^bande-2.conf$'")"
+    expect "listed" 1 "$(guest "bande-system list | grep -c reinstall")"
+}
+
 scenario_live() {
     note "a terminal apt keeps a copy first; a bad live change falls back to the last system that booted"
     fresh_disk
@@ -364,7 +389,7 @@ scenario_live() {
 export LC_ALL=C.UTF-8
 mkdir -p "$work"
 build_base
-[ $# -gt 0 ] || set -- good panic login emergency failed_install power_cut restore live units
+[ $# -gt 0 ] || set -- good panic login emergency failed_install power_cut restore live units reinstall
 for scenario in "$@"; do
     "scenario_$scenario"
 done
