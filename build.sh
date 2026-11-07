@@ -89,7 +89,7 @@ if [ "$target" = apple ]; then
     truncate -s "${root_size}M" "$work/root.img"
     mkdir -p "$work/pkg/esp" "$work/target"
     loop=$(losetup --find --show "$work/root.img")
-    ESP_DIR=$work/pkg/esp ESP_UUID=${ESP_VOLUME_ID#0x} RECOVERY_PARTUUID=@RECOVERY_PARTUUID@ "$here/rootfs/usr/libexec/bande-install" image "$loop" "$recovery" "$work/target"
+    ESP_DIR=$work/pkg/esp ESP_UUID=$(echo "${ESP_VOLUME_ID#0x}" | tr a-f A-F | sed "s/^\(....\)/\1-/") RECOVERY_PARTUUID=@RECOVERY_PARTUUID@ "$here/rootfs/usr/libexec/bande-install" image "$loop" "$recovery" "$work/target"
     losetup -d "$loop"
     loop=
     rm -f "$work/pkg/esp/loader/random-seed"
