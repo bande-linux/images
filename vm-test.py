@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import subprocess
 import sys
 import time
 
 import vm
+
+
+MAC_RECOVERY_PARTUUID = "5e6f7a8b-1c2d-4e3f-8a9b-0c1d2e3f4a5b"
 
 
 def login_shell(machine):
@@ -36,7 +40,8 @@ def install_flow(args, machine_args):
         boot_finished(machine)
         print(machine.run("cat /run/bande-live/device; findmnt -no SOURCE,FSTYPE /; id recovery"))
         wait_for(machine, "pgrep -u recovery bande-composi")
-        time.sleep(8)
+        time.sleep(15)
+        print(machine.run("pgrep -au recovery | cut -c1-80; runuser -u recovery -- env XDG_RUNTIME_DIR=/run/user/1000 systemctl --user --no-pager status 'app-*' 2>&1 | head -20; journalctl --user -M recovery@ -n 20 --no-pager 2>&1 | tail -20 | cut -c1-160"))
         machine.screenshot(os.path.join(args.work, "recovery.png"))
         print(machine.run("/usr/libexec/bande-install install /dev/vdb", 1800))
         print(machine.run("lsblk -o NAME,SIZE,FSTYPE,PARTLABEL,LABEL"))
@@ -68,7 +73,12 @@ def first_run_flow(args, disk, machine_args):
         machine.type("testpass")
         machine.screenshot(os.path.join(args.work, "first-run-account.png"))
         machine.keys("ret")
-        wait_for(machine, "id tester")
+        try:
+            wait_for(machine, "id tester", 30)
+        except TimeoutError:
+            machine.screenshot(os.path.join(args.work, "first-run-stuck.png"))
+            print(machine.run("journalctl -n 30 --no-pager | cut -c1-200"))
+            raise
         time.sleep(4)
         machine.screenshot(os.path.join(args.work, "first-run-look.png"))
         machine.keys("ret")
@@ -101,15 +111,69 @@ def reinstall_flow(args, usb, disk, machine_args):
         machine.stop()
 
 
+def mac_disk(args, package):
+    work = os.path.join(args.work, "mac")
+    os.makedirs(work, exist_ok=True)
+    subprocess.run(["unzip", "-q", "-o", os.path.abspath(package), "-d", work], check=True)
+    recovery = os.path.join(work, "recovery.img")
+    root = os.path.join(work, "root.img")
+    esp_mib = 1024
+    recovery_mib = 6144
+    disk = os.path.join(args.work, "mac.raw")
+    if os.path.exists(disk):
+        os.unlink(disk)
+    subprocess.run(["truncate", "-s", "30G", disk], check=True)
+    table = (
+        "label: gpt\n"
+        f"start=1MiB, size={esp_mib}MiB, type=U\n"
+        f"size={recovery_mib}MiB, type=L, uuid={MAC_RECOVERY_PARTUUID}\n"
+        "type=L\n"
+    )
+    subprocess.run(["sfdisk", "-q", disk], input=table.encode(), check=True)
+    esp = os.path.join(args.work, "mac-esp.img")
+    if os.path.exists(esp):
+        os.unlink(esp)
+    subprocess.run(["mkfs.vfat", "-C", "-F", "32", "-i", "3c2e1a9b", esp, str(esp_mib * 1024)], check=True, stdout=subprocess.DEVNULL)
+    entry = os.path.join(work, "esp", "loader", "entries", "recovery.conf")
+    with open(entry, encoding="utf-8") as fd:
+        text = fd.read()
+    with open(entry, "w", encoding="utf-8") as fd:
+        fd.write(text.replace("@RECOVERY_PARTUUID@", MAC_RECOVERY_PARTUUID))
+    environment = dict(os.environ, MTOOLS_SKIP_CHECK="1")
+    for item in os.listdir(os.path.join(work, "esp")):
+        subprocess.run(["mcopy", "-s", "-i", esp, os.path.join(work, "esp", item), "::/"], check=True, env=environment)
+    for image, seek in ((esp, 1), (recovery, 1 + esp_mib), (root, 1 + esp_mib + recovery_mib)):
+        subprocess.run(["dd", f"if={image}", f"of={disk}", "bs=1M", f"seek={seek}", "conv=notrunc,sparse", "status=none"], check=True)
+    return disk
+
+
+def mac_flow(args, machine_args):
+    disk = mac_disk(args, args.image)
+    machine = vm.Machine("arm64", [{"path": disk, "format": "raw"}], **machine_args)
+    try:
+        login_shell(machine)
+        boot_finished(machine)
+        print(machine.run("findmnt -no SOURCE,FSTYPE,SIZE /; cat /proc/cmdline; getconf PAGESIZE; uname -r; lsblk -o NAME,SIZE,FSTYPE; cryptsetup status bande-root | head -6; cryptsetup token export --token-id 0 /dev/vda3; ls /boot/efi/unboot /boot/efi/loader/entries; systemctl --failed --no-legend | head"))
+        wait_for(machine, "pgrep -u _greetd bande-setup")
+        time.sleep(10)
+        machine.screenshot(os.path.join(args.work, "mac-first-run.png"))
+    finally:
+        machine.stop()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("arch", choices=["arm64", "amd64"])
     parser.add_argument("image")
     parser.add_argument("work")
     parser.add_argument("--tcg", action="store_true")
+    parser.add_argument("--mac", action="store_true")
     args = parser.parse_args()
     os.makedirs(args.work, exist_ok=True)
     machine_args = {"kvm": not args.tcg and os.access("/dev/kvm", os.W_OK)}
+    if args.mac:
+        mac_flow(args, {"kvm": False})
+        return 0
     usb, disk = install_flow(args, machine_args)
     first_run_flow(args, disk, machine_args)
     reinstall_flow(args, usb, disk, machine_args)

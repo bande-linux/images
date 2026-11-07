@@ -56,7 +56,7 @@ write_system() {
 write_fstab() {
     local system=$1 fs_uuid=$2 esp_uuid=$3
     {
-        echo "UUID=$fs_uuid / btrfs $options 0 0"
+        echo "UUID=$fs_uuid / btrfs $options,x-systemd.growfs 0 0"
         echo "UUID=$fs_uuid /home btrfs subvol=@home,$options 0 0"
         echo "UUID=$fs_uuid /var/log btrfs subvol=@var-log,$options 0 0"
         echo "UUID=$fs_uuid /var/cache btrfs subvol=@var-cache,$options 0 0"
@@ -185,6 +185,17 @@ find_esp() {
     sfdisk -d "$disk" | awk -F'[ :]+' '/type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B/ { print $1; exit }'
 }
 
+provisional() {
+    cryptsetup token export --token-id 0 "$1" 2>/dev/null | grep -q '"bande-provisional"'
+}
+
+needs_password() {
+    local root_part
+    root_part=$(readlink -f /dev/disk/by-label/BANDE-ROOT)
+    [ -b "$root_part" ] || fail "No Bande system found."
+    provisional "$root_part" && echo none || echo password
+}
+
 open_system() {
     local root_part esp_part line
     root_part=$(readlink -f /dev/disk/by-label/BANDE-ROOT)
@@ -192,6 +203,9 @@ open_system() {
     trap release EXIT
     mkdir -p "$target/esp"
     IFS= read -r line || true
+    if provisional "$root_part"; then
+        line=bande-provisional
+    fi
     printf %s "$line" | cryptsetup open --key-file - "$root_part" "$mapper" || fail "Wrong password."
     unset line
     esp_part=$(find_esp "$root_part")
@@ -226,6 +240,7 @@ system_tool() {
 case "${1:-}" in
 install) install_disk "$2" ;;
 reinstall) reinstall ;;
+needs-password) needs_password ;;
 versions) system_tool bande-system list | sed 's/^/version /' ;;
 restore) system_tool bande-system restore "$2" ;;
 image) image "$2" "$3" "$4" ;;
