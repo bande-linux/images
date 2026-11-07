@@ -103,7 +103,7 @@ mkdir -p "$root/tmp/debs"
 cp "$WORK"/debs/*.deb "$root/tmp/debs/"
 mkdir -p "$root/tmp/desktop"
 cp "$WORK"/desktop/*.deb "$root/tmp/desktop/"
-SYSTEMD_RELAX_ESP_CHECKS=1 chroot "$root" sh -c 'apt-get install -y --no-install-recommends /tmp/debs/bande-scripts_*.deb /tmp/debs/bande-usb-gadget_*.deb && apt-get install -y --no-install-recommends /tmp/debs/linux-image-*.deb'
+SYSTEMD_RELAX_ESP_CHECKS=1 chroot "$root" sh -c 'apt-get install -y --no-install-recommends /tmp/debs/bande-scripts_*.deb /tmp/debs/bande-system_*.deb /tmp/debs/bande-usb-gadget_*.deb && apt-get install -y --no-install-recommends /tmp/debs/linux-image-*.deb'
 chroot "$root" sh -c 'apt-get install -y --no-install-recommends /tmp/desktop/*.deb'
 cp "$root/usr/share/bande-apt-source/bande-apple.sources" "$root/etc/apt/sources.list.d/"
 rm -rf "$root/tmp/debs" "$root/tmp/desktop"

@@ -34,7 +34,7 @@ work=$(mktemp -d)
 trap 'umount -R "$work/root" 2>/dev/null || true; rm -rf --one-file-system "$work"' EXIT
 root=$work/root
 mkdir -p "$out" "$work/debs" "$work/desktop"
-cp "$kernel_deb" "$scripts_debs"/bande-scripts_*.deb "$scripts_debs"/bande-usb-gadget_*.deb "$work/debs/"
+cp "$kernel_deb" "$scripts_debs"/bande-scripts_*.deb "$scripts_debs"/bande-system_*.deb "$scripts_debs"/bande-usb-gadget_*.deb "$work/debs/"
 cp "$desktop_debs"/*.deb "$work/desktop/"
 [ -n "$UNBOOT" ] && cp "$UNBOOT" "$work/unboot.bin"
 [ -n "$U_BOOT" ] && cp "$U_BOOT" "$work/u-boot-nodtb.bin"
