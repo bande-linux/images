@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 root=$1
+export UNBOOT_UPDATE_DISABLED=1
 
 echo bande > "$root/etc/hostname"
 printf '127.0.0.1\tlocalhost\n127.0.1.1\tbande\n::1\tlocalhost ip6-localhost ip6-loopback\n' > "$root/etc/hosts"
