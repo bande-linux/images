@@ -1,6 +1,0 @@
-#!/bin/sh
-if cryptsetup token export --token-id 0 "$CRYPTTAB_SOURCE" 2>/dev/null | grep -q '"bande-provisional"'; then
-    printf bande-provisional
-    exit 0
-fi
-exec /lib/cryptsetup/askpass "Password: "

@@ -25,12 +25,14 @@ keyboard)
     *\(*\)) variant=${2#*(}; variant=${variant%)} ;;
     esac
     localectl set-x11-keymap "$layout" "" "$variant"
+    systemctl start bande-unlock-assets.service
     ;;
 encryption-status)
     [ -x "$encryption" ] || { echo unavailable; exit 0; }
     "$encryption" status
     ;;
 encrypt)
+    systemctl start bande-unlock-assets.service
     exec "$encryption" set-passphrase
     ;;
 account)

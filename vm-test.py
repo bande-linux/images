@@ -80,6 +80,9 @@ def first_run_flow(args, disk, machine_args):
             print(machine.run("journalctl -n 30 --no-pager | cut -c1-200"))
             raise
         time.sleep(4)
+        machine.screenshot(os.path.join(args.work, "first-run-recovery-key.png"))
+        machine.keys("ret")
+        time.sleep(4)
         machine.screenshot(os.path.join(args.work, "first-run-look.png"))
         machine.keys("ret")
         time.sleep(3)
@@ -94,12 +97,31 @@ def first_run_flow(args, disk, machine_args):
         machine.stop()
 
 
+def encrypted_boot_flow(args, disk, machine_args):
+    machine = vm.Machine(args.arch, [{"path": disk}], **machine_args)
+    try:
+        time.sleep(45)
+        machine.screenshot(os.path.join(args.work, "unlock-prompt.png"))
+        machine.type("wrongpass\n")
+        time.sleep(15)
+        machine.screenshot(os.path.join(args.work, "unlock-wrong.png"))
+        machine.type("testpass\n")
+        login_shell(machine)
+        boot_finished(machine)
+        wait_for(machine, "pgrep -u tester bande-composi")
+        time.sleep(10)
+        machine.screenshot(os.path.join(args.work, "after-unlock.png"))
+        print(machine.run("cat /run/bande-disk-encryption/status; /usr/libexec/bande-disk-encryption status; loginctl list-sessions --no-legend; cryptsetup luksDump /dev/disk/by-label/BANDE-ROOT | grep -E 'Tokens|Keyslots' -A3 | head"))
+    finally:
+        machine.stop()
+
+
 def reinstall_flow(args, usb, disk, machine_args):
     machine = vm.Machine(args.arch, [{"path": usb}, {"path": disk}], **machine_args)
     try:
         login_shell(machine)
         boot_finished(machine)
-        print(machine.run("printf 'bande-provisional\\n' | /usr/libexec/bande-install reinstall", 1800))
+        print(machine.run("printf 'testpass\\n' | /usr/libexec/bande-install reinstall", 1800))
     finally:
         machine.stop()
     machine = vm.Machine(args.arch, [{"path": disk}], **machine_args)
@@ -176,6 +198,7 @@ def main():
         return 0
     usb, disk = install_flow(args, machine_args)
     first_run_flow(args, disk, machine_args)
+    encrypted_boot_flow(args, disk, machine_args)
     reinstall_flow(args, usb, disk, machine_args)
     return 0
 
