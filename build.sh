@@ -64,7 +64,8 @@ iproute2,iputils-ping,ca-certificates,less,nano,sudo,apt-utils,locales,console-s
 network-manager,wpasupplicant,wireless-regdb,
 libpam-systemd,dbus-user-session,mesa-vulkan-drivers,libgbm1,vulkan-tools,
 pipewire,pipewire-pulse,pipewire-alsa,wireplumber,rtkit,alsa-utils,
-bluez,libspa-0.2-bluetooth,packagekit,fonts-noto-core,accountsservice"
+bluez,libspa-0.2-bluetooth,packagekit,fonts-noto-core,accountsservice,
+fuse3,cifs-utils,smbclient,sshfs,davfs2,go-mtpfs,gphotofs,libmtp-common"
 
 env -u UNBOOT -u U_BOOT WORK="$work" HERE="$here" TARGET="$target" ARCHIVE="$ARCHIVE" EXTRA="$extra" \
 mmdebstrap --variant=minbase --arch="$arch" --mode=root --format=directory \
