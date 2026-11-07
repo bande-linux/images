@@ -107,10 +107,11 @@ EOT
     if [ -d "$system/usr/lib/linux-image-$version/apple" ]; then
         cp "$system/usr/lib/linux-image-$version/apple/t8112-j473.dtb" "$esp/bande/"
     fi
+    printf 'default bande-*\ntimeout 0\n' > "$esp/loader/loader.conf"
     if [ -x "$system/etc/kernel/postinst.d/zz-update-unboot" ]; then
         mkdir -p "$esp/unboot"
         touch "$esp/.builder"
-        chroot "$system" /etc/kernel/postinst.d/zz-update-unboot "$version"
+        chroot "$system" env -u UNBOOT -u U_BOOT -u TARGET /etc/kernel/postinst.d/zz-update-unboot "$version"
         rm -f "$esp/.builder"
     fi
     umount "$system/boot/efi" "$system/sys" "$system/proc" "$system/dev"
