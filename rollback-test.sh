@@ -238,6 +238,10 @@ scenario_good() {
     wait_blessed
     expect "update in the new version" installed "$(guest cat /etc/hello-update)"
     expect "counter removed" 1 "$(guest "ls /boot/efi/loader/entries | grep -c '^bande-2.conf$'")"
+    add_update live-tool 1
+    guest apt-get install -y -qq live-tool >/dev/null
+    guest apt-get install -y -qq --reinstall live-tool >/dev/null
+    expect "a live change keeps the updated version running" "/@system/$id" "$(running)"
 }
 
 scenario_panic() {
