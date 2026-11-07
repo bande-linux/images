@@ -19,7 +19,7 @@ locale)
     grep -qxF "$2 UTF-8" /etc/locale.gen || echo "$2 UTF-8" >> /etc/locale.gen
     locale-gen >/dev/null
     printf 'LANG=%s\n' "$2" > /etc/locale.conf
-    cp /etc/locale.conf /etc/default/locale
+    [ -L /etc/default/locale ] || cp /etc/locale.conf /etc/default/locale
     zone=$(timezone_of "$2")
     [ -z "$zone" ] || timedatectl set-timezone "$zone"
     ;;
