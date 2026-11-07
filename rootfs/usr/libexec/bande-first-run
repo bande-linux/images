@@ -14,7 +14,12 @@ timezone_of() {
 
 case "${1:-}" in
 locale)
-    localectl set-locale "LANG=$2"
+    grep -qxF "$2 UTF-8" /usr/share/i18n/SUPPORTED || { echo "unknown locale $2" >&2; exit 1; }
+    sed -i "/^# *$2 UTF-8\$/s/^# *//" /etc/locale.gen
+    grep -qxF "$2 UTF-8" /etc/locale.gen || echo "$2 UTF-8" >> /etc/locale.gen
+    locale-gen >/dev/null
+    printf 'LANG=%s\n' "$2" > /etc/locale.conf
+    cp /etc/locale.conf /etc/default/locale
     zone=$(timezone_of "$2")
     [ -z "$zone" ] || timedatectl set-timezone "$zone"
     ;;
@@ -24,7 +29,7 @@ keyboard)
     case "$2" in
     *\(*\)) variant=${2#*(}; variant=${variant%)} ;;
     esac
-    localectl set-x11-keymap "$layout" "" "$variant"
+    printf 'XKBMODEL=""\nXKBLAYOUT="%s"\nXKBVARIANT="%s"\nXKBOPTIONS=""\nBACKSPACE="guess"\n' "$layout" "$variant" > /etc/default/keyboard
     systemctl start bande-unlock-assets.service
     ;;
 encryption-status)

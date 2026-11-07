@@ -60,7 +60,7 @@ gpg --batch --quiet --dearmor < "$key" > "$work/archive.gpg"
 packages="systemd-sysv,udev,dbus,kmod,initramfs-tools,busybox,cpio,zstd,
 systemd-boot,systemd-boot-efi,systemd-resolved,systemd-oomd,systemd-zram-generator,systemd-coredump,
 btrfs-progs,linux-base,cryptsetup,cryptsetup-bin,cryptsetup-initramfs,libx11-data,squashfs-tools,dosfstools,e2fsprogs,fdisk,parted,polkitd,pkexec,
-iproute2,iputils-ping,ca-certificates,less,nano,sudo,apt-utils,locales,console-setup,
+iproute2,iputils-ping,ca-certificates,less,nano,sudo,apt-utils,locales,console-setup,tzdata,
 network-manager,wpasupplicant,wireless-regdb,
 libpam-systemd,dbus-user-session,mesa-vulkan-drivers,libgbm1,vulkan-tools,
 pipewire,pipewire-pulse,pipewire-alsa,wireplumber,rtkit,alsa-utils,

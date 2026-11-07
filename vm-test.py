@@ -23,7 +23,7 @@ def boot_finished(machine):
 
 def wait_for(machine, command, tries=90):
     for _ in range(tries):
-        if machine.run(f"{command} || true").strip():
+        if machine.run(f"{command} 2>/dev/null || true").strip():
             return
         time.sleep(2)
     raise TimeoutError(command)
