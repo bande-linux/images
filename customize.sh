@@ -2,12 +2,27 @@
 set -eu
 root=$1
 
+mkdir -p "$root/etc/kernel"
 echo bande > "$root/etc/hostname"
 printf '127.0.0.1\tlocalhost\n127.0.1.1\tbande\n::1\tlocalhost ip6-localhost ip6-loopback\n' > "$root/etc/hosts"
-cat > "$root/etc/fstab" <<EOT
+if [ "$BOOT_CHAIN" = uboot ]; then
+    cat > "$root/etc/fstab" <<EOT
+UUID=$ROOT_UUID / btrfs noatime,compress=zstd:1,x-systemd.growfs 0 0
+UUID=$ROOT_UUID /home btrfs subvol=@home,noatime,compress=zstd:1 0 0
+UUID=$ROOT_UUID /var/log btrfs subvol=@var-log,noatime,compress=zstd:1 0 0
+UUID=$ROOT_UUID /var/cache btrfs subvol=@var-cache,noatime,compress=zstd:1 0 0
+UUID=$ROOT_UUID /var/tmp btrfs subvol=@var-tmp,noatime,compress=zstd:1 0 0
+UUID=$ROOT_UUID /.snapshots btrfs subvol=@snapshots,noatime,compress=zstd:1 0 0
+UUID=$ESP_UUID /boot/efi vfat rw,umask=0077,nofail 0 2
+EOT
+    echo layout=bande > "$root/etc/kernel/install.conf"
+    echo btrfs >> "$root/etc/initramfs-tools/modules"
+else
+    cat > "$root/etc/fstab" <<EOT
 UUID=$ROOT_UUID / ext4 rw,errors=remount-ro,x-systemd.growfs 0 1
 UUID=$ESP_UUID /boot/efi vfat rw,umask=0077,nofail 0 2
 EOT
+fi
 cp -a --no-preserve=ownership "$ROOTFS/." "$root/"
 chroot "$root" dpkg-divert --no-rename --package bande-images \
     --divert /usr/share/alsa/ucm2/conf.d/macaudio/cs42l84/Headphones.conf.asahi \
@@ -17,7 +32,7 @@ chroot "$root" systemctl set-default graphical.target
 chroot "$root" systemctl enable systemd-networkd
 chroot "$root" systemctl disable systemd-networkd-wait-online
 
-mkdir -p "$root/boot/efi/unboot" "$root/usr/lib/unboot" "$root/etc/kernel"
+mkdir -p "$root/boot/efi/unboot" "$root/usr/lib/unboot"
 touch "$root/boot/efi/.builder"
 [ -e "$WORK/unboot.bin" ] && cp "$WORK/unboot.bin" "$root/usr/lib/unboot/"
 [ -e "$WORK/u-boot-nodtb.bin" ] && cp "$WORK/u-boot-nodtb.bin" "$root/usr/lib/unboot/"
@@ -92,6 +107,11 @@ SYSTEMD_RELAX_ESP_CHECKS=1 chroot "$root" sh -c 'apt-get install -y --no-install
 chroot "$root" sh -c 'apt-get install -y --no-install-recommends /tmp/desktop/*.deb'
 cp "$root/usr/share/bande-apt-source/bande-apple.sources" "$root/etc/apt/sources.list.d/"
 rm -rf "$root/tmp/debs" "$root/tmp/desktop"
+if [ "$BOOT_CHAIN" = uboot ]; then
+    chroot "$root" env BANDE_ESP=/boot/efi bande-system first-entry /
+    kernel=$(chroot "$root" sh -c 'linux-version list | linux-version sort | tail -n 1')
+    cp "$root/usr/lib/linux-image-$kernel/apple/t8112-j473.dtb" "$root/boot/efi/bande/"
+fi
 umount "$root/boot/efi"
 
 if [ ! -s "$root/boot/efi/unboot/boot.bin" ]; then

@@ -124,7 +124,7 @@ jobs:
             -e UNBOOT=bootloader/build/unboot.bin -e U_BOOT=u-boot/u-boot-nodtb.bin \
             debian:testing sh -euc '
               apt-get update -qq
-              apt-get install -y -qq --no-install-recommends mmdebstrap e2fsprogs zip python3 \
+              apt-get install -y -qq --no-install-recommends mmdebstrap e2fsprogs btrfs-progs zip python3 \
                 dosfstools mtools fdisk cpio ca-certificates >/dev/null
               ./build.sh "$KDEB" debs desktop-debs out'
 

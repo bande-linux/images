@@ -10,6 +10,11 @@ troot=$WORK/test-root
 
 mkdir -p "$out"
 cp -a "$root" "$troot"
+cat > "$troot/etc/fstab" <<EOT
+UUID=$ROOT_UUID / ext4 rw,errors=remount-ro 0 1
+UUID=$(echo "$ESP_VOLUME_ID" | sed 's/^0x//' | tr a-f A-F | sed 's/^\(....\)/\1-/') /boot/efi vfat rw,umask=0077,nofail 0 2
+EOT
+rm -f "$troot/etc/kernel/install.conf"
 trap 'umount -R "$troot/proc" "$troot/sys" "$troot/dev" 2>/dev/null || true' EXIT
 mount -t proc proc "$troot/proc"
 mount -t sysfs sys "$troot/sys"

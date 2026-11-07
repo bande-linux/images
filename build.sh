@@ -48,7 +48,7 @@ greetd,libpam-systemd,dbus-user-session,mesa-vulkan-drivers,libgbm1,vulkan-tools
 pipewire,pipewire-pulse,pipewire-alsa,wireplumber,rtkit,alsa-utils,asahi-platform-audio,
 bluez,libspa-0.2-bluetooth,packagekit,locales,fonts-noto-core,systemd-zram-generator,systemd-oomd,
 systemd-coredump,accountsservice"
-[ "$BOOT_CHAIN" = uboot ] && packages="$packages,systemd-boot,systemd-boot-efi"
+[ "$BOOT_CHAIN" = uboot ] && packages="$packages,systemd-boot,systemd-boot-efi,btrfs-progs,linux-base"
 
 env -u UNBOOT -u U_BOOT -u SOURCE -u TARGET -u CONFIG -u DTBS -u UNBOOT_UPDATE_DISABLED WORK=$work ROOTFS=$here/rootfs BOOT_CHAIN=$BOOT_CHAIN ROOT_UUID=$ROOT_UUID ESP_UUID=$esp_uuid \
 mmdebstrap --variant=minbase --arch=arm64 --mode=root --format=directory \
@@ -71,7 +71,11 @@ mkroot() {
         -E hash_seed="$ROOT_UUID",root_owner=0:0 -d "$1" "$2" "${size}M"
 }
 
-mkroot "$root" "$work/pkg/root.img"
+if [ "$BOOT_CHAIN" = uboot ]; then
+    "$here/mkroot.sh" "$root" "$work/pkg/root.img" "$ROOT_UUID"
+else
+    mkroot "$root" "$work/pkg/root.img"
+fi
 root_size=$(stat -c %s "$work/pkg/root.img")
 
 (cd "$work/pkg" && find esp root.img -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} + &&
