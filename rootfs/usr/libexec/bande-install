@@ -140,6 +140,8 @@ populate() {
     write_fstab "$target/top/@system/$id" "$fs_uuid" "$ESP_UUID"
     step boot
     write_boot "$target/top/@system/$id" "$id" "$fs_uuid" "$luks_uuid" "$image_partuuid" "$esp"
+    SYSTEM_ID=$id
+    FS_UUID=$fs_uuid
     sync
 }
 
@@ -223,6 +225,39 @@ reinstall() {
     step done
 }
 
+mount_system() {
+    local new=$target/new name
+    mkdir -p "$new"
+    mount -o "subvol=@system/$SYSTEM_ID,$options" "/dev/mapper/$mapper" "$new"
+    for name in home:@home var/log:@var-log var/cache:@var-cache var/tmp:@var-tmp .snapshots:@snapshots; do
+        mkdir -p "$new/${name%%:*}"
+        mount -o "subvol=${name##*:},$options" "/dev/mapper/$mapper" "$new/${name%%:*}"
+    done
+    mount --bind "$target/esp" "$new/boot/efi"
+}
+
+restore_backup() {
+    local uuid=$1 filesystem=$2 machine=$3 image backup_password status=0
+    image=$(live_image)
+    open_system
+    IFS= read -r backup_password || true
+    populate "$ROOT_PART" "$image" "$target/esp" ""
+    mount_system
+    step restore
+    printf '%s\n' "$backup_password" | /usr/libexec/bande-backup-restore restore --uuid "$uuid" \
+        --filesystem "$filesystem" --machine "$machine" --target "$target/new" |
+        sed -un 's/^{"percent":\(.*\)}$/percent \1/p' || status=${PIPESTATUS[1]}
+    unset backup_password
+    rm -f "$target/new/var/lib/bande/setup-pending"
+    umount -R "$target/new"
+    case "$status" in
+    0) step done ;;
+    2) fail "Wrong backup password." ;;
+    3) echo "warning Some files in the backup were damaged and could not be restored."; step done ;;
+    *) fail "The backup could not be restored." ;;
+    esac
+}
+
 image() {
     local device=$1 recovery=$2
     target=$3
@@ -241,6 +276,8 @@ case "${1:-}" in
 install) install_disk "$2" ;;
 reinstall) reinstall ;;
 needs-password) needs_password ;;
+backups) /usr/libexec/bande-backup-restore list ;;
+restore-backup) restore_backup "$2" "$3" "$4" ;;
 versions) system_tool bande-system list | sed 's/^/version /' ;;
 restore) system_tool bande-system restore "$2" ;;
 image) image "$2" "$3" "$4" ;;

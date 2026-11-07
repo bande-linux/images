@@ -24,7 +24,8 @@ chroot "$root" sh -c 'apt-get update -qq && apt-get install -y --no-install-reco
 rm -f "$root/etc/apt/sources.list.d/bande-image.list" "$root/etc/apt/keyrings/bande-image.gpg"
 [ "$TARGET" = apple ] && cp "$root/usr/share/bande-apt-source/bande-apple.sources" "$root/etc/apt/sources.list.d/"
 chroot "$root" apt-get update -qq
-extra=$(echo "$EXTRA" | tr "," " ")
+extra="$(echo "$EXTRA" | tr "," " ")"
+[ -z "$(chroot "$root" apt-cache policy bande-backup | grep Candidate | grep -v none || true)" ] && [ -z "$(cd "$root/tmp/local" && ls | grep '^bande-backup_' || true)" ] || extra="bande-backup $extra"
 if [ -z "$(cd "$root/tmp/local" && ls | grep '^bande-recovery-tools_' || true)" ]; then
     if [ "${ALLOW_MISSING_APPS:-}" != 1 ] || [ -n "$(chroot "$root" apt-cache policy bande-recovery-tools | grep Candidate | grep -v none || true)" ]; then
         extra="bande-recovery-tools $extra"
