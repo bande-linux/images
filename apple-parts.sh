@@ -5,10 +5,14 @@ out=$(realpath -m "$2")
 mkdir -p "$out/debs"
 sudo apt-get update -qq
 sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-    build-essential debhelper dpkg-dev cargo rustc gcc-aarch64-linux-gnu bison flex libssl-dev libgnutls28-dev \
+    build-essential debhelper dpkg-dev gcc-aarch64-linux-gnu bison flex libssl-dev libgnutls28-dev \
     python3-venv python3-dev swig bc
+command -v rustup >/dev/null || sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends rustup
+[ ! -e "$HOME/.cargo/env" ] || . "$HOME/.cargo/env"
+rustup toolchain install stable --profile minimal --target aarch64-unknown-none-softfloat
+rustup default stable
 for source in system-scripts nvram; do
-    (cd "$parts/$source" && dpkg-buildpackage -us -uc -b)
+    (cd "$parts/$source" && dpkg-buildpackage -us -uc -b -d)
 done
 cp "$parts"/*.deb "$out/debs/"
 make -C "$parts/bootloader" -j"$(nproc)" ARCH= CHAINLOADING=1
