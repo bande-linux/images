@@ -10,7 +10,7 @@ case "$command" in
 add)
     [ -e "$entry" ] || exit 0
     sed -E -e 's/^title .*/& (boot messages)/' \
-        -e '/^options/ s/ (quiet|loglevel=[0-9]+|udev\.log_level=[0-9]+|vt\.global_cursor_default=[0-9]+|fbcon=logo-pos:[a-z]+)//g' \
+        -e '/^options/ s/ (quiet|loglevel=[0-9]+|udev\.log_level=[0-9]+|vt\.global_cursor_default=[0-9]+|fbcon=logo-(pos:[a-z]+|count:[0-9]+))//g' \
         "$entry" > "$messages"
     ;;
 remove)
