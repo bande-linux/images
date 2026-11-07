@@ -8,7 +8,7 @@ import time
 import vm
 
 
-ERASE = (560, 480)
+ERASE = (485, 453)
 MAC_RECOVERY_PARTUUID = "5e6f7a8b-1c2d-4e3f-8a9b-0c1d2e3f4a5b"
 
 
@@ -47,14 +47,14 @@ def install_flow(args, machine_args):
         machine.click(640, 173)
         machine.drain(5)
         machine.screenshot(os.path.join(args.work, "recovery-disks.png"))
-        machine.click(640, 200)
+        machine.click(640, 175)
         machine.drain(2)
         machine.screenshot(os.path.join(args.work, "recovery-disk-chosen.png"))
         machine.click(ERASE[0], ERASE[1])
         machine.drain(10)
         machine.screenshot(os.path.join(args.work, "recovery-installing.png"))
         for _ in range(360):
-            if machine.run("test -e /dev/vdb3 && cryptsetup luksDump /dev/vdb3 >/dev/null 2>&1 && ! pgrep -f bande-install >/dev/null && echo finished || true").strip():
+            if machine.run("test -e /dev/vdb3 && cryptsetup luksDump /dev/vdb3 >/dev/null 2>&1 && ! pgrep -x bande-install >/dev/null && echo finished || true").strip():
                 break
             machine.drain(10)
         machine.screenshot(os.path.join(args.work, "recovery-finished.png"))
