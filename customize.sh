@@ -5,7 +5,7 @@ root=$1
 echo bande > "$root/etc/hostname"
 printf '127.0.0.1\tlocalhost\n127.0.1.1\tbande\n::1\tlocalhost ip6-localhost ip6-loopback\n' > "$root/etc/hosts"
 cp -a --no-preserve=ownership "$HERE/rootfs/." "$root/"
-if [ "$TARGET" = apple ]; then
+if [ "$IMAGE_TARGET" = apple ]; then
     cp -a --no-preserve=ownership "$HERE/rootfs-apple/." "$root/"
     chroot "$root" dpkg-divert --no-rename --package bande-images \
         --divert /usr/share/alsa/ucm2/conf.d/macaudio/cs42l84/Headphones.conf.asahi \
@@ -24,7 +24,7 @@ mkdir -p "$root/tmp/local"
 cp -a "$WORK/local/." "$root/tmp/local/"
 chroot "$root" sh -c 'apt-get update -qq && apt-get install -y --no-install-recommends bande-archive-keyring bande-apt-source'
 rm -f "$root/etc/apt/sources.list.d/bande-image.list" "$root/etc/apt/keyrings/bande-image.gpg"
-[ "$TARGET" = apple ] && cp "$root/usr/share/bande-apt-source/bande-apple.sources" "$root/etc/apt/sources.list.d/"
+[ "$IMAGE_TARGET" = apple ] && cp "$root/usr/share/bande-apt-source/bande-apple.sources" "$root/etc/apt/sources.list.d/"
 chroot "$root" apt-get update -qq
 extra="$(echo "$EXTRA" | tr "," " ")"
 [ -z "$(chroot "$root" apt-cache policy bande-backup | grep Candidate | grep -v none || true)" ] && [ -z "$(cd "$root/tmp/local" && ls | grep '^bande-backup_' || true)" ] || extra="bande-backup $extra"
