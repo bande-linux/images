@@ -50,6 +50,28 @@ def install_flow(args, machine_args):
     return usb, disk
 
 
+def install_only_flow(args, machine_args):
+    usb = os.path.join(args.work, "usb.qcow2")
+    disk = os.path.join(args.work, "disk.qcow2")
+    vm.overlay(usb, os.path.abspath(args.image))
+    vm.blank_disk(disk, "40G")
+    machine = vm.Machine(args.arch, [{"path": usb}, {"path": disk}], **machine_args)
+    try:
+        login_shell(machine)
+        boot_finished(machine)
+        print(machine.run("uname -m; cat /run/bande-live/device; /usr/libexec/bande-install install /dev/vdb", 3600))
+    finally:
+        machine.stop()
+    machine = vm.Machine(args.arch, [{"path": disk}], **machine_args)
+    try:
+        login_shell(machine)
+        boot_finished(machine)
+        print(machine.run("uname -m; findmnt -no SOURCE,FSTYPE,OPTIONS /; cat /proc/cmdline; cryptsetup status bande-root | head -5; bootctl list --no-pager | grep -E 'title'; systemctl --failed --no-legend | head; pgrep -au _greetd | head -5"))
+        machine.screenshot(os.path.join(args.work, "installed.png"))
+    finally:
+        machine.stop()
+
+
 def first_run_flow(args, disk, machine_args):
     machine = vm.Machine(args.arch, [{"path": disk}], **machine_args)
     try:
@@ -190,11 +212,15 @@ def main():
     parser.add_argument("work")
     parser.add_argument("--tcg", action="store_true")
     parser.add_argument("--mac", action="store_true")
+    parser.add_argument("--install-only", action="store_true")
     args = parser.parse_args()
     os.makedirs(args.work, exist_ok=True)
     machine_args = {"kvm": not args.tcg and os.access("/dev/kvm", os.W_OK)}
     if args.mac:
         mac_flow(args, {"kvm": False})
+        return 0
+    if args.install_only:
+        install_only_flow(args, machine_args)
         return 0
     usb, disk = install_flow(args, machine_args)
     first_run_flow(args, disk, machine_args)
