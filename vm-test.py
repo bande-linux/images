@@ -113,7 +113,7 @@ def first_run_flow(args, disk, machine_args):
         wait_for(machine, "pgrep -u tester bande-composi")
         time.sleep(10)
         machine.screenshot(os.path.join(args.work, "desktop.png"))
-        print(machine.run("id tester; ls -A /var/lib/bande; cat /home/tester/.config/bande/config.kdl; localectl status | head -3; loginctl list-sessions --no-legend; touch /home/tester/keep-me; chown tester: /home/tester/keep-me"))
+        print(machine.run("id tester; ls -A /var/lib/bande; cat /home/tester/.config/bande/config.kdl; localectl status | head -3; loginctl list-sessions --no-legend; sync"))
         assert machine.run("ls -A /var/lib/bande | grep -c setup-pending || true").strip() == "0"
     finally:
         machine.stop()
@@ -134,6 +134,7 @@ def encrypted_boot_flow(args, disk, machine_args):
         wait_for(machine, "pgrep -u tester bande-composi", 45)
         machine.drain(10)
         machine.screenshot(os.path.join(args.work, "after-unlock.png"))
+        machine.run("touch /home/tester/keep-me; chown tester: /home/tester/keep-me; sync")
         print(machine.run("cat /run/bande-disk-encryption/status; loginctl list-sessions --no-legend; cryptsetup luksDump /dev/disk/by-label/BANDE-ROOT | grep -E '^  [0-9]: luks2|Tokens' | head"))
     finally:
         machine.stop()
@@ -153,7 +154,7 @@ def reinstall_flow(args, usb, disk, machine_args):
         machine.type("testpass\n")
         login_shell(machine)
         boot_finished(machine)
-        print(machine.run("cat /proc/cmdline; ls -la /home/tester/keep-me; btrfs subvolume list / | head; id tester; ls -A /var/lib/bande; bootctl list --no-pager | grep -E ' id:|title:'"))
+        print(machine.run("cat /proc/cmdline; findmnt -no SOURCE /home; ls -la /home/tester/keep-me; btrfs subvolume list / | head; id tester; ls -A /var/lib/bande; bootctl list --no-pager | grep -E ' id:|title:'"))
     finally:
         machine.stop()
 
