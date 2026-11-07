@@ -48,6 +48,9 @@ write_system() {
     mkdir -p "$system/.snapshots"
     chmod 0700 "$system/.snapshots"
     printf 'created=%s\nwhy=%s\n' "$(date +%s)" "$why" > "$target/top/@system/$id.info"
+    if [ -n "$(find "$target/top/@home" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+        rm -f "$system/var/lib/bande/setup-pending"
+    fi
     if [ "$id" = 1 ]; then
         cp -a "$system/var/log/." "$target/top/@var-log/"
         cp -a "$system/var/cache/." "$target/top/@var-cache/"
