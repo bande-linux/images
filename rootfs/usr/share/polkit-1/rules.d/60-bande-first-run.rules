@@ -1,0 +1,21 @@
+polkit.addRule(function(action, subject) {
+    if (subject.user != "_greetd") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    var allowed = [
+        "org.bande.first-run",
+        "org.freedesktop.NetworkManager.network-control",
+        "org.freedesktop.NetworkManager.enable-disable-wifi",
+        "org.freedesktop.NetworkManager.wifi.scan",
+        "org.freedesktop.NetworkManager.settings.modify.system"
+    ];
+    if (allowed.indexOf(action.id) < 0) {
+        return polkit.Result.NOT_HANDLED;
+    }
+    try {
+        polkit.spawn(["/usr/bin/test", "-e", "/var/lib/bande/setup-pending"]);
+    } catch (error) {
+        return polkit.Result.NOT_HANDLED;
+    }
+    return polkit.Result.YES;
+});

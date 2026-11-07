@@ -1,22 +1,21 @@
 import json, sys
 
-name, root_size, volume_id = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+name, recovery_size, root_size, volume_id = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
 
 print(json.dumps({
     "os_list": [
         {
-            "name": "Bande Linux (Debian 13, Mac mini M2, J473)",
+            "name": "Bande Linux (Mac mini M2)",
             "default_os_name": "Bande Linux",
             "boot_object": "unboot.bin",
             "next_object": "unboot/boot.bin",
             "package": f"{name}.zip",
             "supported_fw": ["13.5"],
-            "setup": True,
             "partitions": [
                 {
                     "name": "EFI",
                     "type": "EFI",
-                    "size": "512MB",
+                    "size": "1GB",
                     "format": "fat",
                     "volume_id": volume_id,
                     "copy_firmware": True,
@@ -24,7 +23,14 @@ print(json.dumps({
                     "source": "esp",
                 },
                 {
-                    "name": "Root",
+                    "name": "BANDE-RECOVERY",
+                    "type": "Linux",
+                    "size": "6GB",
+                    "image": "recovery.img",
+                    "recovery": True,
+                },
+                {
+                    "name": "BANDE-ROOT",
                     "type": "Linux",
                     "size": f"{root_size}B",
                     "expand": True,

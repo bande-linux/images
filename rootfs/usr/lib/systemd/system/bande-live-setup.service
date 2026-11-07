@@ -1,0 +1,13 @@
+[Unit]
+Description=Prepare the recovery environment
+ConditionPathExists=/run/bande-live/device
+DefaultDependencies=no
+After=systemd-sysusers.service local-fs.target
+Before=greetd.service systemd-user-sessions.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/bande-live-setup
+
+[Install]
+WantedBy=sysinit.target

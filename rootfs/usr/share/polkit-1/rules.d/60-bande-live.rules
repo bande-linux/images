@@ -1,0 +1,11 @@
+polkit.addRule(function(action, subject) {
+    if (subject.user != "recovery") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    try {
+        polkit.spawn(["/usr/bin/test", "-e", "/run/bande-live/device"]);
+    } catch (error) {
+        return polkit.Result.NOT_HANDLED;
+    }
+    return polkit.Result.YES;
+});

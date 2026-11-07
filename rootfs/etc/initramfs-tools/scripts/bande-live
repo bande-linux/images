@@ -1,0 +1,31 @@
+#!/bin/sh
+mountroot() {
+    image=
+    for argument in $(cat /proc/cmdline); do
+        case "$argument" in
+        bande.image=*) image=${argument#bande.image=} ;;
+        esac
+    done
+    [ -n "$image" ] || panic "bande-live: no bande.image= on the command line"
+    modprobe -q squashfs
+    modprobe -q overlay
+    wait_for_udev 10
+    device=$(resolve_device "$image") || true
+    tries=0
+    while [ ! -b "$device" ] && [ "$tries" -lt 60 ]; do
+        sleep 1
+        tries=$((tries + 1))
+        device=$(resolve_device "$image") || true
+    done
+    [ -b "$device" ] || panic "bande-live: $image did not appear"
+    mkdir -p /run/bande-live/image /run/bande-live/overlay
+    mount -t squashfs -o ro "$device" /run/bande-live/image || panic "bande-live: cannot mount $device"
+    mount -t tmpfs -o mode=0755 tmpfs /run/bande-live/overlay
+    mkdir -p /run/bande-live/overlay/upper /run/bande-live/overlay/work
+    mount -t overlay -o lowerdir=/run/bande-live/image,upperdir=/run/bande-live/overlay/upper,workdir=/run/bande-live/overlay/work overlay "${rootmnt:?}" ||
+        panic "bande-live: cannot mount the overlay"
+    echo "$device" > /run/bande-live/device
+    mkdir -p "$rootmnt/etc/systemd/system/greetd.service.d"
+    printf '[Service]\nExecStart=\nExecStart=/usr/sbin/greetd --config /usr/share/bande-live/greetd.toml\n' \
+        > "$rootmnt/etc/systemd/system/greetd.service.d/live.conf"
+}

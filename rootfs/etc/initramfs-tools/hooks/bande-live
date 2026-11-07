@@ -1,0 +1,4 @@
+#!/bin/sh
+[ "$1" = prereqs ] && exit 0
+. /usr/share/initramfs-tools/hook-functions
+manual_add_modules squashfs overlay

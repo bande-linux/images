@@ -1,0 +1,62 @@
+#!/bin/bash
+set -euo pipefail
+
+pending=/var/lib/bande/setup-pending
+encryption=/usr/libexec/bande-disk-encryption
+
+[ -e "$pending" ] || { echo "Setup is finished." >&2; exit 1; }
+
+timezone_of() {
+    local country=${1#*_}
+    country=${country%%.*}
+    awk -v country="$country" '!/^#/ && $1 == country { print $3; exit }' /usr/share/zoneinfo/zone.tab
+}
+
+case "${1:-}" in
+locale)
+    localectl set-locale "LANG=$2"
+    zone=$(timezone_of "$2")
+    [ -z "$zone" ] || timedatectl set-timezone "$zone"
+    ;;
+keyboard)
+    layout=${2%%(*}
+    variant=
+    case "$2" in
+    *\(*\)) variant=${2#*(}; variant=${variant%)} ;;
+    esac
+    localectl set-x11-keymap "$layout" "" "$variant"
+    ;;
+encryption-status)
+    [ -x "$encryption" ] || { echo unavailable; exit 0; }
+    "$encryption" status
+    ;;
+encrypt)
+    exec "$encryption" set-passphrase
+    ;;
+account)
+    login=$2
+    full_name=$3
+    IFS= read -r password
+    useradd -m -c "$full_name" -s /bin/bash -G sudo,video,render,input,audio "$login"
+    printf '%s:%s\n' "$login" "$password" | chpasswd
+    unset password
+    ;;
+finish)
+    login=$2
+    look=$3
+    updates=$4
+    [ "$(id -u "$login")" -ge 1000 ] || { echo "$login is a system account" >&2; exit 1; }
+    case "$look" in light | dark | automatic) ;; *) exit 1 ;; esac
+    case "$updates" in
+    on) automatic=true ;;
+    off) automatic=false ;;
+    *) exit 1 ;;
+    esac
+    runuser -u "$login" -- sh -c 'mkdir -p ~/.config/bande && printf "appearance \"%s\"\nautomatic-updates #%s\n" "$1" "$2" > ~/.config/bande/config.kdl' sh "$look" "$automatic"
+    rm -f "$pending"
+    ;;
+*)
+    echo "unknown command ${1:-}" >&2
+    exit 1
+    ;;
+esac

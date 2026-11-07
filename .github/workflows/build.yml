@@ -1,141 +1,84 @@
 name: build
 
-# NEEDS PORT (not needed for the launch): this workflow still builds the kernel from the legacy
-# bande-linux/linux tree and runs the image job on the self-hosted bande-kvm runner. The kernel now
-# comes from the kernel repo, published as linux-image-apple-arm64-16k (split into -image, -binary,
-# -modules and -base debs) in the Bande archive's apple component. Porting means fetching those
-# packages from the archive (as fetch-desktop.sh does for the desktop), letting build.sh take more
-# than one kernel deb, and moving the image job to a GitHub-hosted runner. See README.md.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
-    inputs:
-      kernel-ref:
-        description: Legacy bande-linux/linux branch to build the kernel from (see NEEDS PORT above)
-        type: string
-        default: bande-hw/integration
-      desktop-version:
-        description: The bande-desktop version the APT archive must serve; empty takes the newest
-        type: string
-        default: ''
-      boot-chain:
-        type: choice
-        options: [ uboot, direct ]
-        default: uboot
 
 jobs:
-  kernel:
-    uses: bande-linux/linux/.github/workflows/build.yml@bande-hw/ci-gfx
-    with:
-      ref: ${{ inputs.kernel-ref || 'bande-hw/integration' }}
-
-  image:
-    needs: kernel
-    runs-on: [self-hosted, bande-kvm]
+  apple-parts:
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
-
-    env:
-      HAVE_TOKEN: ${{ secrets.SUBMODULE_TOKEN != '' }}
-      BOOT_CHAIN: ${{ inputs.boot-chain || 'uboot' }}
-      DESKTOP_VERSION: ${{ inputs.desktop-version }}
-
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 1
-
-      - name: Require a token for the private repositories
-        if: env.HAVE_TOKEN != 'true'
-        run: |
-          echo "::warning::SUBMODULE_TOKEN is not set; system-scripts and the bootloader cannot be checked out, so no image is built."
-
-      - uses: actions/download-artifact@v7
-        if: env.HAVE_TOKEN == 'true'
-        with:
-          name: kernel
-          path: kernel
-
       - uses: actions/checkout@v7
-        if: env.HAVE_TOKEN == 'true'
-        with:
-          repository: bande-linux/apt
-          sparse-checkout: conf
-          fetch-depth: 1
-          path: apt
-
-      - name: Fetch the desktop packages from the APT archive
-        if: env.HAVE_TOKEN == 'true'
-        run: |
-          self=$(grep -o 'containers/[0-9a-f]\{64\}' /proc/self/mountinfo | head -1 | cut -d/ -f2)
-          docker run --rm --volumes-from "$self" -w "$PWD" -e DESKTOP_VERSION debian:testing sh -euc '
-            apt-get update -qq
-            apt-get install -y -qq --no-install-recommends ca-certificates curl gpg gpgv xz-utils >/dev/null
-            ./fetch-desktop.sh apt/conf/archive-key.asc desktop-debs "$DESKTOP_VERSION"'
-
-      - uses: actions/checkout@v7
-        if: env.HAVE_TOKEN == 'true'
         with:
           repository: bande-linux/system-scripts
-          ref: prep/debian-usb-gadget
-          token: ${{ secrets.SUBMODULE_TOKEN }}
-          path: system-scripts
-
+          path: parts/system-scripts
       - uses: actions/checkout@v7
-        if: env.HAVE_TOKEN == 'true'
+        with:
+          repository: bande-linux/nvram
+          path: parts/nvram
+      - uses: actions/checkout@v7
         with:
           repository: bande-linux/bootloader
-          token: ${{ secrets.SUBMODULE_TOKEN }}
           submodules: recursive
-          path: bootloader
-
+          path: parts/bootloader
       - uses: actions/checkout@v7
-        if: env.HAVE_TOKEN == 'true'
         with:
           repository: bande-linux/u-boot
           ref: main
-          token: ${{ secrets.SUBMODULE_TOKEN }}
           fetch-depth: 1
-          path: u-boot
-
-      - name: Build bande-scripts, unboot and u-boot
-        if: env.HAVE_TOKEN == 'true'
-        run: |
-          mkdir -p debs
-          git -C system-scripts archive --prefix=src/ HEAD | docker run --rm -i debian:testing sh -euc '
-            apt-get update -qq
-            apt-get install -y -qq --no-install-recommends build-essential debhelper >/dev/null
-            tar -x -C /tmp && cd /tmp/src && dpkg-buildpackage -us -uc -b >&2
-            cd /tmp && tar -c *.deb' | tar -x -C debs
-          make -C bootloader -j8 ARCH= CHAINLOADING=1
-          python3 -m venv /tmp/uboot-venv
-          /tmp/uboot-venv/bin/pip install -q setuptools pyelftools
-          PATH=/tmp/uboot-venv/bin:$PATH make -C u-boot apple_m1_defconfig
-          PATH=/tmp/uboot-venv/bin:$PATH make -C u-boot -j8
-
-      - name: Build the image
-        if: env.HAVE_TOKEN == 'true'
-        run: |
-          kdeb=$(ls kernel/linux-image-*.deb | grep -v -- -dbg_)
-          self=$(grep -o 'containers/[0-9a-f]\{64\}' /proc/self/mountinfo | head -1 | cut -d/ -f2)
-          docker run --rm --privileged --volumes-from "$self" -w "$PWD" \
-            -e BOOT_CHAIN -e TEST_ROOT=1 -e KDEB="$kdeb" \
-            -e SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) \
-            -e UNBOOT=bootloader/build/unboot.bin -e U_BOOT=u-boot/u-boot-nodtb.bin \
-            debian:testing sh -euc '
-              apt-get update -qq
-              apt-get install -y -qq --no-install-recommends mmdebstrap e2fsprogs zip python3 \
-                dosfstools mtools fdisk cpio ca-certificates >/dev/null
-              ./build.sh "$KDEB" debs desktop-debs out'
-
-      - name: Boot the root filesystem under QEMU/KVM
-        if: env.HAVE_TOKEN == 'true'
-        run: ./vm-test.sh out/test
-
+          path: parts/u-boot
+      - name: Build the Mac boot chain and packages
+        run: ./apple-parts.sh parts apple-parts
       - uses: actions/upload-artifact@v7
-        if: env.HAVE_TOKEN == 'true'
         with:
-          name: os-image
+          name: apple-parts
+          path: apple-parts
+
+  image:
+    needs: apple-parts
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: apple, runner: ubuntu-24.04-arm, arch: arm64 }
+          - { target: generic-arm64, runner: ubuntu-24.04-arm, arch: arm64 }
+          - { target: generic-amd64, runner: ubuntu-24.04, arch: amd64 }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    container:
+      image: debian:testing
+      options: --privileged --device /dev/kvm
+    steps:
+      - name: Prepare the container
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends git sudo ca-certificates
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        if: matrix.target == 'apple'
+        with:
+          name: apple-parts
+          path: apple-parts
+      - name: Install the build tools
+        run: ./ci-setup.sh
+      - name: Build the image
+        run: |
+          git config --global --add safe.directory "$PWD"
+          if [ "${{ matrix.target }}" = apple ]; then
+            export LOCAL_DEBS=$PWD/apple-parts/debs UNBOOT=$PWD/apple-parts/unboot.bin U_BOOT=$PWD/apple-parts/u-boot-nodtb.bin
+          fi
+          ./build.sh "${{ matrix.target }}" archive-key.asc out
+      - name: Prove install and first start in QEMU
+        if: matrix.target != 'apple'
+        run: ./vm-test.py "${{ matrix.arch }}" out/bande-debian-testing-${{ matrix.target }}.img vm
+      - uses: actions/upload-artifact@v7
+        with:
+          name: image-${{ matrix.target }}
           path: |
+            out/*.img
             out/*.zip
             out/installer_data.json
+          compression-level: 6

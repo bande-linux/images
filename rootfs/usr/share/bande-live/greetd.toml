@@ -1,0 +1,10 @@
+[terminal]
+vt = 7
+
+[initial_session]
+command = "bande-session"
+user = "recovery"
+
+[default_session]
+command = "bande-session"
+user = "recovery"

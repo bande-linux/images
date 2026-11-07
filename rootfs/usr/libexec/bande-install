@@ -1,0 +1,421 @@
+#!/bin/bash
+set -euo pipefail
+
+options=noatime,compress=zstd:1
+mapper=bande-root
+recovery_bytes=$((6 * 1024 * 1024 * 1024))
+esp_bytes=$((1024 * 1024 * 1024))
+subvolumes="@home @var-log @var-cache @var-tmp @snapshots"
+
+step() { echo "step $*"; }
+fail() {
+    echo "error $*"
+    exit 1
+}
+
+part_of() {
+    local disk=$1 number=$2
+    case "$disk" in
+    *[0-9]) echo "${disk}p$number" ;;
+    *) echo "$disk$number" ;;
+    esac
+}
+
+live_image() {
+    [ -b "$(cat /run/bande-live/device 2>/dev/null)" ] || fail "This command needs Recovery or the install USB."
+    cat /run/bande-live/device
+}
+
+write_system() {
+    local image=$1 target=$2
+    mkdir -p "$target/top"
+    mount -o "$options" "/dev/mapper/$mapper" "$target/top"
+    mkdir -p "$target/top/@system"
+    local id=1
+    while [ -e "$target/top/@system/$id" ]; do id=$((id + 1)); done
+    btrfs -q subvolume create "$target/top/@system/$id"
+    local name
+    for name in $subvolumes; do
+        [ -e "$target/top/$name" ] || btrfs -q subvolume create "$target/top/$name"
+    done
+    chmod 0700 "$target/top/@snapshots"
+    unsquashfs -q -n -f -d "$target/top/@system/$id" "$image"
+    local system=$target/top/@system/$id
+    mkdir -p "$system/.snapshots"
+    chmod 0700 "$system/.snapshots"
+    [ "$id" != 1 ] || cp -a "$system/var/log/." "$target/top/@var-log/"
+    [ "$id" != 1 ] || cp -a "$system/var/cache/." "$target/top/@var-cache/"
+    [ "$id" != 1 ] || cp -a "$system/var/tmp/." "$target/top/@var-tmp/"
+    find "$system/var/log" "$system/var/cache" "$system/var/tmp" -mindepth 1 -delete
+    echo "$id"
+}
+
+write_fstab() {
+    local system=$1 fs_uuid=$2 esp_uuid=$3
+    {
+        echo "UUID=$fs_uuid / btrfs $options 0 0"
+        echo "UUID=$fs_uuid /home btrfs subvol=@home,$options 0 0"
+        echo "UUID=$fs_uuid /var/log btrfs subvol=@var-log,$options 0 0"
+        echo "UUID=$fs_uuid /var/cache btrfs subvol=@var-cache,$options 0 0"
+        echo "UUID=$fs_uuid /var/tmp btrfs subvol=@var-tmp,$options 0 0"
+        echo "UUID=$fs_uuid /.snapshots btrfs subvol=@snapshots,$options 0 0"
+        echo "UUID=$esp_uuid /boot/efi vfat rw,umask=0077,nofail 0 2"
+    } > "$system/etc/fstab"
+}
+
+write_boot() {
+    local system=$1 id=$2 fs_uuid=$3 luks_uuid=$4 image_partuuid=$5 esp=$6
+    echo "$mapper UUID=$luks_uuid none luks,discard,initramfs,keyscript=/usr/libexec/bande-unlock-script" > "$system/etc/crypttab"
+    echo "root=UUID=$fs_uuid rw quiet" > "$system/etc/kernel/cmdline"
+
+    mount --bind /dev "$system/dev"
+    mount -t proc proc "$system/proc"
+    mount -t sysfs sys "$system/sys"
+    mount --bind "$esp" "$system/boot/efi"
+    SYSTEMD_RELAX_ESP_CHECKS=1 chroot "$system" bootctl install --esp-path=/boot/efi --no-variables --entry-token=literal:debian
+    local version
+    version=$(basename "$(find "$system/lib/modules" -mindepth 1 -maxdepth 1 | sort -V | tail -1)")
+    if [ -n "$image_partuuid" ]; then
+        mkdir -p "$esp/bande/recovery" "$esp/loader/entries"
+        cp "$system/boot/vmlinuz-$version" "$esp/bande/recovery/linux"
+        cp "$system/boot/initrd.img-$version" "$esp/bande/recovery/initrd"
+    fi
+    chroot "$system" update-initramfs -u -k "$version" >/dev/null
+    local hash
+    hash=$(cat "$system/boot/vmlinuz-$version" "$system/boot/initrd.img-$version" | sha256sum | cut -c1-16)
+    mkdir -p "$esp/bande/$hash" "$esp/loader/entries"
+    cp "$system/boot/vmlinuz-$version" "$esp/bande/$hash/linux"
+    cp "$system/boot/initrd.img-$version" "$esp/bande/$hash/initrd"
+    cat > "$esp/loader/entries/bande-$id.conf" <<EOT
+title Bande
+sort-key bande
+version $id
+linux /bande/$hash/linux
+initrd /bande/$hash/initrd
+options root=UUID=$fs_uuid rw quiet rootflags=subvol=@system/$id,$options
+EOT
+    if [ -n "$image_partuuid" ]; then
+        cat > "$esp/loader/entries/recovery.conf" <<EOT
+title Recovery
+sort-key zz-recovery
+linux /bande/recovery/linux
+initrd /bande/recovery/initrd
+options boot=bande-live bande.image=PARTUUID=$image_partuuid quiet
+EOT
+    fi
+    if [ -x "$system/etc/kernel/postinst.d/zz-update-unboot" ]; then
+        mkdir -p "$esp/unboot"
+        touch "$esp/.builder"
+        chroot "$system" /etc/kernel/postinst.d/zz-update-unboot "$version"
+        rm -f "$esp/.builder"
+    fi
+    umount "$system/boot/efi" "$system/sys" "$system/proc" "$system/dev"
+}
+
+format_root() {
+    local device=$1 reencrypt=$2
+    printf bande-provisional | cryptsetup luksFormat -q --type luks2 --label BANDE-ROOT --pbkdf pbkdf2 --pbkdf-force-iterations 1000 --key-file - "$device"
+    echo "{\"type\":\"bande-provisional\",\"keyslots\":[],\"reencrypt\":$reencrypt}" | cryptsetup token import --token-id 0 "$device"
+    printf bande-provisional | cryptsetup open --key-file - "$device" "$mapper"
+    mkfs.btrfs -q -f -L bande "/dev/mapper/$mapper"
+}
+
+release() {
+    local target=$1
+    if [ -d "$target" ]; then
+        umount -R "$target/esp" 2>/dev/null || true
+        umount -R "$target/top" 2>/dev/null || true
+    fi
+    cryptsetup close "$mapper" 2>/dev/null || true
+}
+
+populate() {
+    local device=$1 image=$2 esp=$3 target=$4 image_partuuid=$5
+    local id fs_uuid luks_uuid esp_uuid
+    step copy
+    id=$(write_system "$image" "$target" | tail -1)
+    fs_uuid=$(blkid -s UUID -o value "/dev/mapper/$mapper")
+    luks_uuid=$(cryptsetup luksUUID "$device")
+    esp_uuid=${ESP_UUID:-$(findmnt -no UUID "$esp" 2>/dev/null || true)}
+    write_fstab "$target/top/@system/$id" "$fs_uuid" "$esp_uuid"
+    step boot
+    write_boot "$target/top/@system/$id" "$id" "$fs_uuid" "$luks_uuid" "$image_partuuid" "$esp"
+    sync
+}
+
+install_disk() {
+    local disk=$1 target=/run/bande-install
+    local live
+    live=$(live_image)
+    [ -b "$disk" ] || fail "No such disk."
+    [ "$(lsblk -no PKNAME "$live")" != "$(basename "$disk")" ] || fail "This disk holds the running system."
+    trap 'release "$target"' EXIT
+    mkdir -p "$target/esp"
+    step partition
+    wipefs -q -a "$disk"
+    sfdisk -q "$disk" <<EOT
+label: gpt
+size=$((esp_bytes / 512)), type=U, name=EFI
+size=$((recovery_bytes / 512)), type=L, name=BANDE-RECOVERY
+type=L, name=BANDE-ROOT
+EOT
+    udevadm settle
+    local esp_part recovery_part root_part
+    esp_part=$(part_of "$disk" 1)
+    recovery_part=$(part_of "$disk" 2)
+    root_part=$(part_of "$disk" 3)
+    step recovery
+    dd if="$live" of="$recovery_part" bs=4M conv=fsync status=none
+    step format
+    mkfs.vfat -F 32 -n BANDE-EFI "$esp_part" >/dev/null
+    format_root "$root_part" false
+    mount "$esp_part" "$target/esp"
+    ESP_UUID=$(blkid -s UUID -o value "$esp_part")
+    populate "$root_part" "$recovery_part" "$target/esp" "$target" "$(blkid -s PARTUUID -o value "$recovery_part")"
+    step done
+}
+
+find_esp() {
+    local partuuid disk
+    partuuid=$(tr -d '\0' < /proc/device-tree/chosen/bande,efi-system-partition 2>/dev/null || true)
+    if [ -n "$partuuid" ]; then
+        readlink -f "/dev/disk/by-partuuid/$partuuid"
+        return
+    fi
+    disk=/dev/$(lsblk -no PKNAME "$1" | head -1)
+    sfdisk -d "$disk" | awk -F'[ :]+' '/type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B/ { print $1; exit }'
+}
+
+reinstall() {
+    local target=/run/bande-install
+    local image root_part esp_part
+    image=$(live_image)
+    root_part=$(readlink -f /dev/disk/by-label/BANDE-ROOT)
+    [ -b "$root_part" ] || fail "No Bande system found."
+    trap 'release "$target"' EXIT
+    mkdir -p "$target/esp"
+    IFS= read -r line || true
+    if ! printf %s "$line" | cryptsetup open --key-file - "$root_part" "$mapper"; then
+        fail "Wrong password."
+    fi
+    unset line
+    esp_part=$(find_esp "$root_part")
+    [ -n "$esp_part" ] || fail "No EFI partition found."
+    mount "$esp_part" "$target/esp"
+    ESP_UUID=$(blkid -s UUID -o value "$esp_part")
+    populate "$root_part" "$image" "$target/esp" "$target" ""
+    step done
+}
+
+image() {
+    [ -b "$(cat /run/bande-live/device 2>/dev/null)" ] || fail "This command needs Recovery or the install USB."
+    cat /run/bande-live/device
+}
+
+write_system() {
+    local image=$1 target=$2
+    mkdir -p "$target/top"
+    mount -o "$options" "/dev/mapper/$mapper" "$target/top"
+    mkdir -p "$target/top/@system"
+    local id=1
+    while [ -e "$target/top/@system/$id" ]; do id=$((id + 1)); done
+    btrfs -q subvolume create "$target/top/@system/$id"
+    local name
+    for name in $subvolumes; do
+        [ -e "$target/top/$name" ] || btrfs -q subvolume create "$target/top/$name"
+    done
+    chmod 0700 "$target/top/@snapshots"
+    unsquashfs -q -n -f -d "$target/top/@system/$id" "$image"
+    local system=$target/top/@system/$id
+    mkdir -p "$system/.snapshots"
+    chmod 0700 "$system/.snapshots"
+    [ "$id" != 1 ] || cp -a "$system/var/log/." "$target/top/@var-log/"
+    [ "$id" != 1 ] || cp -a "$system/var/cache/." "$target/top/@var-cache/"
+    [ "$id" != 1 ] || cp -a "$system/var/tmp/." "$target/top/@var-tmp/"
+    find "$system/var/log" "$system/var/cache" "$system/var/tmp" -mindepth 1 -delete
+    echo "$id"
+}
+
+write_fstab() {
+    local system=$1 fs_uuid=$2 esp_uuid=$3
+    {
+        echo "UUID=$fs_uuid / btrfs $options 0 0"
+        echo "UUID=$fs_uuid /home btrfs subvol=@home,$options 0 0"
+        echo "UUID=$fs_uuid /var/log btrfs subvol=@var-log,$options 0 0"
+        echo "UUID=$fs_uuid /var/cache btrfs subvol=@var-cache,$options 0 0"
+        echo "UUID=$fs_uuid /var/tmp btrfs subvol=@var-tmp,$options 0 0"
+        echo "UUID=$fs_uuid /.snapshots btrfs subvol=@snapshots,$options 0 0"
+        echo "UUID=$esp_uuid /boot/efi vfat rw,umask=0077,nofail 0 2"
+    } > "$system/etc/fstab"
+}
+
+write_boot() {
+    local system=$1 id=$2 fs_uuid=$3 luks_uuid=$4 image_partuuid=$5 esp=$6
+    echo "$mapper UUID=$luks_uuid none luks,discard,initramfs,keyscript=/usr/libexec/bande-unlock-script" > "$system/etc/crypttab"
+    echo "root=UUID=$fs_uuid rw quiet" > "$system/etc/kernel/cmdline"
+
+    mount --bind /dev "$system/dev"
+    mount -t proc proc "$system/proc"
+    mount -t sysfs sys "$system/sys"
+    mount --bind "$esp" "$system/boot/efi"
+    SYSTEMD_RELAX_ESP_CHECKS=1 chroot "$system" bootctl install --esp-path=/boot/efi --no-variables --entry-token=literal:debian
+    local version
+    version=$(basename "$(find "$system/lib/modules" -mindepth 1 -maxdepth 1 | sort -V | tail -1)")
+    if [ -n "$image_partuuid" ]; then
+        mkdir -p "$esp/bande/recovery" "$esp/loader/entries"
+        cp "$system/boot/vmlinuz-$version" "$esp/bande/recovery/linux"
+        cp "$system/boot/initrd.img-$version" "$esp/bande/recovery/initrd"
+    fi
+    chroot "$system" update-initramfs -u -k "$version" >/dev/null
+    local hash
+    hash=$(cat "$system/boot/vmlinuz-$version" "$system/boot/initrd.img-$version" | sha256sum | cut -c1-16)
+    mkdir -p "$esp/bande/$hash" "$esp/loader/entries"
+    cp "$system/boot/vmlinuz-$version" "$esp/bande/$hash/linux"
+    cp "$system/boot/initrd.img-$version" "$esp/bande/$hash/initrd"
+    cat > "$esp/loader/entries/bande-$id.conf" <<EOT
+title Bande
+sort-key bande
+version $id
+linux /bande/$hash/linux
+initrd /bande/$hash/initrd
+options root=UUID=$fs_uuid rw quiet rootflags=subvol=@system/$id,$options
+EOT
+    if [ -n "$image_partuuid" ]; then
+        cat > "$esp/loader/entries/recovery.conf" <<EOT
+title Recovery
+sort-key zz-recovery
+linux /bande/recovery/linux
+initrd /bande/recovery/initrd
+options boot=bande-live bande.image=PARTUUID=$image_partuuid quiet
+EOT
+    fi
+    if [ -x "$system/etc/kernel/postinst.d/zz-update-unboot" ]; then
+        mkdir -p "$esp/unboot"
+        touch "$esp/.builder"
+        chroot "$system" /etc/kernel/postinst.d/zz-update-unboot "$version"
+        rm -f "$esp/.builder"
+    fi
+    umount "$system/boot/efi" "$system/sys" "$system/proc" "$system/dev"
+}
+
+format_root() {
+    local device=$1 reencrypt=$2
+    printf bande-provisional | cryptsetup luksFormat -q --type luks2 --label BANDE-ROOT --pbkdf pbkdf2 --pbkdf-force-iterations 1000 --key-file - "$device"
+    echo "{\"type\":\"bande-provisional\",\"keyslots\":[],\"reencrypt\":$reencrypt}" | cryptsetup token import --token-id 0 "$device"
+    printf bande-provisional | cryptsetup open --key-file - "$device" "$mapper"
+    mkfs.btrfs -q -f -L bande "/dev/mapper/$mapper"
+}
+
+release() {
+    local target=$1
+    if [ -d "$target" ]; then
+        umount -R "$target/esp" 2>/dev/null || true
+        umount -R "$target/top" 2>/dev/null || true
+    fi
+    cryptsetup close "$mapper" 2>/dev/null || true
+}
+
+populate() {
+    local device=$1 image=$2 esp=$3 target=$4 image_partuuid=$5
+    local id fs_uuid luks_uuid esp_uuid
+    step copy
+    id=$(write_system "$image" "$target" | tail -1)
+    fs_uuid=$(blkid -s UUID -o value "/dev/mapper/$mapper")
+    luks_uuid=$(cryptsetup luksUUID "$device")
+    esp_uuid=${ESP_UUID:-$(findmnt -no UUID "$esp" 2>/dev/null || true)}
+    write_fstab "$target/top/@system/$id" "$fs_uuid" "$esp_uuid"
+    step boot
+    write_boot "$target/top/@system/$id" "$id" "$fs_uuid" "$luks_uuid" "$image_partuuid" "$esp"
+    sync
+}
+
+install_disk() {
+    local disk=$1 target=/run/bande-install
+    local live
+    live=$(live_image)
+    [ -b "$disk" ] || fail "No such disk."
+    [ "$(lsblk -no PKNAME "$live")" != "$(basename "$disk")" ] || fail "This disk holds the running system."
+    trap 'release "$target"' EXIT
+    mkdir -p "$target/esp"
+    step partition
+    wipefs -q -a "$disk"
+    sfdisk -q "$disk" <<EOT
+label: gpt
+size=$((esp_bytes / 512)), type=U, name=EFI
+size=$((recovery_bytes / 512)), type=L, name=BANDE-RECOVERY
+type=L, name=BANDE-ROOT
+EOT
+    udevadm settle
+    local esp_part recovery_part root_part
+    esp_part=$(part_of "$disk" 1)
+    recovery_part=$(part_of "$disk" 2)
+    root_part=$(part_of "$disk" 3)
+    step recovery
+    dd if="$live" of="$recovery_part" bs=4M conv=fsync status=none
+    step format
+    mkfs.vfat -F 32 -n BANDE-EFI "$esp_part" >/dev/null
+    format_root "$root_part" false
+    mount "$esp_part" "$target/esp"
+    ESP_UUID=$(blkid -s UUID -o value "$esp_part")
+    populate "$root_part" "$recovery_part" "$target/esp" "$target" "$(blkid -s PARTUUID -o value "$recovery_part")"
+    step done
+}
+
+reinstall() {
+    local target=/run/bande-install
+    local image root_part esp_part recovery_uuid
+    image=$(live_image)
+    root_part=$(readlink -f /dev/disk/by-partlabel/BANDE-ROOT)
+    [ -b "$root_part" ] || fail "No Bande system found."
+    trap 'release "$target"' EXIT
+    mkdir -p "$target/esp"
+    IFS= read -r line || true
+    if ! printf %s "$line" | cryptsetup open --key-file - "$root_part" "$mapper"; then
+        fail "Wrong password."
+    fi
+    unset line
+    local disk
+    disk=/dev/$(lsblk -no PKNAME "$root_part")
+    esp_part=$(sfdisk -d "$disk" | awk -F'[ :]+' '/type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B/ { print $1; exit }')
+    [ -n "$esp_part" ] || fail "No EFI partition found."
+    mount "$esp_part" "$target/esp"
+    ESP_UUID=$(blkid -s UUID -o value "$esp_part")
+    recovery_uuid=$(blkid -s PARTUUID -o value /dev/disk/by-partlabel/BANDE-RECOVERY)
+    populate "$root_part" "$image" "$target/esp" "$target" "$recovery_uuid"
+    step done
+}
+
+with_system() {
+    local target=/run/bande-install root_part esp_part
+    root_part=$(readlink -f /dev/disk/by-label/BANDE-ROOT)
+    [ -b "$root_part" ] || fail "No Bande system found."
+    trap 'release "$target"' EXIT
+    mkdir -p "$target/esp"
+    IFS= read -r line || true
+    if ! printf %s "$line" | cryptsetup open --key-file - "$root_part" "$mapper"; then
+        fail "Wrong password."
+    fi
+    unset line
+    esp_part=$(find_esp "$root_part")
+    [ -n "$esp_part" ] || fail "No EFI partition found."
+    mount "$esp_part" "$target/esp"
+    BANDE_ESP=$target/esp BANDE_ROOT_DEVICE=/dev/mapper/$mapper "$@"
+}
+
+image() {
+    local device=$1 recovery=$2 target=$3
+    trap 'release "$target"' EXIT
+    mkdir -p "$target"
+    format_root "$device" true
+    populate "$device" "$recovery" "$ESP_DIR" "$target" "${RECOVERY_PARTUUID:-}"
+}
+
+case "${1:-}" in
+install) install_disk "$2" ;;
+reinstall) reinstall ;;
+versions) with_system bande-system list | sed 's/^/version /' ;;
+restore) with_system bande-system restore "$2" ;;
+image) image "$2" "$3" "$4" ;;
+release) release "$2" ;;
+*) fail "unknown command ${1:-}" ;;
+esac
