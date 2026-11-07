@@ -43,7 +43,9 @@ write_system() {
         [ -e "$target/top/$name" ] || btrfs -q subvolume create "$target/top/$name"
     done
     chmod 0700 "$target/top/@snapshots"
-    unsquashfs -q -n -f -d "$target/top/@system/$id" "$image" >/dev/null
+    sysctl -q vm.dirty_background_bytes=67108864 vm.dirty_bytes=268435456
+    unsquashfs -q -n -f -p 2 -da 128 -fr 128 -d "$target/top/@system/$id" "$image" >/dev/null
+    sync
     local system=$target/top/@system/$id
     mkdir -p "$system/.snapshots"
     chmod 0700 "$system/.snapshots"
