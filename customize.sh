@@ -44,6 +44,7 @@ missing=$(chroot "$root" apt-cache depends bande-desktop | sed -n 's/^ *Recommen
 }
 # shellcheck disable=SC2086
 chroot "$root" env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends bande-desktop $apps $extra $local_debs
+chroot "$root" /usr/libexec/bande-desktop/language-packs --every-language
 rm -rf "$root/tmp/local" "$root"/var/lib/apt/lists/* "$root"/var/cache/apt/archives/*.deb
 
 chroot "$root" systemctl enable NetworkManager systemd-resolved greetd bande-live-setup

@@ -17,6 +17,7 @@ locale)
     /usr/libexec/bande-locale-helper locale "LANG=$2"
     zone=$(timezone_of "$2")
     [ -z "$zone" ] || timedatectl set-timezone "$zone"
+    systemctl start --no-block bande-language-packs.service || true
     ;;
 keyboard)
     /usr/libexec/bande-locale-helper keyboard "$2"
