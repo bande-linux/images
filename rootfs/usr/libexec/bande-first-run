@@ -42,6 +42,7 @@ finish)
     login=$2
     look=$3
     updates=$4
+    analytics=${5:-off}
     [ "$(id -u "$login")" -ge 1000 ] || { echo "$login is a system account" >&2; exit 1; }
     case "$look" in light | dark | automatic) ;; *) exit 1 ;; esac
     case "$updates" in
@@ -49,6 +50,8 @@ finish)
     off) automatic=false ;;
     *) exit 1 ;;
     esac
+    case "$analytics" in on | off) ;; *) exit 1 ;; esac
+    [ "$analytics" = off ] || /usr/libexec/bande-reporter sending on
     runuser -u "$login" -- sh -c 'mkdir -p ~/.config/bande && printf "appearance \"%s\"\nautomatic-updates #%s\n" "$1" "$2" > ~/.config/bande/config.kdl' sh "$look" "$automatic"
     rm -f "$pending"
     ;;
