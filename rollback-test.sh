@@ -39,7 +39,7 @@ build_base() {
     mmdebstrap --variant=minbase --arch=arm64 --mode=root --format=directory \
         --components=main --skip=check/empty \
         --include="systemd-sysv,udev,dbus,kmod,initramfs-tools,zstd,btrfs-progs,dosfstools,systemd-boot,systemd-boot-efi,linux-base,openssh-server,iproute2,systemd-resolved,apt-utils,passwd,wireless-regdb$kernel_pkg" \
-        testing "$work/root" "deb http://deb.debian.org/debian testing main"
+        forky "$work/root" "deb http://deb.debian.org/debian forky main"
     local root=$work/root
     if [ "$kernel" != debian ]; then
         tar -C "$root" -xf "$kernel" --keep-directory-symlink

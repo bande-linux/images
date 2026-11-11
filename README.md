@@ -1,11 +1,11 @@
 # Bande images
 
-The Bande OS image: Debian testing with the Bande desktop, as a read-only system image that serves
+The Bande OS image: Debian 14 (forky) with the Bande desktop, as a read-only system image that serves
 as the USB installer, the recovery environment and the source for reinstalling. `main` is the trunk.
 
 | Path | What it is |
 |---|---|
-| `build.sh` | builds an image with mmdebstrap from Debian testing and the Bande APT archive: `apple`, `generic-arm64` or `generic-amd64` |
+| `build.sh` | builds an image with mmdebstrap from Debian forky (with forky-updates and forky-security) and the Bande APT archive: `apple`, `generic-arm64` or `generic-amd64` |
 | `customize.sh` | the mmdebstrap customize hook: installs the desktop, the kernel and the machine's packages |
 | `mkusb.sh` | packs the generic targets as a bootable GPT disk image for a USB stick or a VM |
 | `apple-parts.sh` | builds what the `apple` target takes from outside the archive: unboot, U-Boot, `bande-scripts`, `bande-nvram` |
@@ -21,7 +21,7 @@ as the USB installer, the recovery environment and the source for reinstalling. 
 
     ./ci-setup.sh
     sudo ./build.sh generic-arm64 archive-key.asc out
-    sudo ./vm-test.py arm64 out/bande-debian-testing-generic-arm64.img vm
+    sudo ./vm-test.py arm64 out/bande-debian-forky-generic-arm64.img vm
 
 `LOCAL_DEBS=<dir>` installs local packages over the archive's, to try a change before it is
 published. The image's secrets are nil: an account, a password and Wi-Fi come from the first-run

@@ -12,7 +12,7 @@ key=$(realpath "$2")
 out=$(realpath -m "$3")
 here=$(cd "$(dirname "$0")" && pwd)
 
-: "${SUITE:=testing}"
+: "${SUITE:=forky}"
 : "${MIRROR:=http://deb.debian.org/debian}"
 : "${ARCHIVE:=https://bande-linux.github.io/apt}"
 : "${LOCAL_DEBS:=}"
@@ -73,6 +73,7 @@ mmdebstrap --variant=minbase --arch="$arch" --mode=root --format=directory \
     --include="$(echo "$packages" | tr -d '\n')" \
     --customize-hook="$here/customize.sh \"\$1\"" \
     "$SUITE" "$root" "deb $MIRROR $SUITE main non-free-firmware" \
+    "deb $MIRROR $SUITE-updates main non-free-firmware" \
     "deb http://security.debian.org/debian-security $SUITE-security main non-free-firmware"
 
 recovery=$work/recovery.img

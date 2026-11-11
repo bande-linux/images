@@ -49,7 +49,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     container:
-      image: debian:testing
+      image: debian:forky
       options: --privileged --device /dev/kvm
     steps:
       - name: Prepare the container
@@ -90,7 +90,7 @@ jobs:
           rm -rf "$GNUPGHOME"
       - name: Prove install and first start in QEMU
         if: matrix.target != 'apple'
-        run: ./vm-test.py "${{ matrix.arch }}" out/bande-debian-testing-${{ matrix.target }}.img vm
+        run: ./vm-test.py "${{ matrix.arch }}" out/bande-debian-forky-${{ matrix.target }}.img vm
       - uses: actions/upload-artifact@v7
         with:
           name: image-${{ matrix.target }}
