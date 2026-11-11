@@ -6,6 +6,9 @@ on:
   workflow_dispatch:
 
 jobs:
+  suites:
+    uses: bande-linux/apt/.github/workflows/suites.yml@main
+
   apple-parts:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
@@ -38,10 +41,13 @@ jobs:
           path: apple-parts
 
   image:
-    needs: apple-parts
+    needs: [suites, apple-parts]
+    name: image (${{ matrix.suite }}, ${{ matrix.target }})
     strategy:
       fail-fast: false
       matrix:
+        suite: ${{ fromJSON(needs.suites.outputs.list) }}
+        target: [apple, generic-arm64, generic-amd64]
         include:
           - { target: apple, runner: ubuntu-24.04-arm, arch: arm64 }
           - { target: generic-arm64, runner: ubuntu-24.04-arm, arch: arm64 }
@@ -49,7 +55,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     container:
-      image: debian:forky
+      image: debian:${{ matrix.suite }}
       options: --privileged --device /dev/kvm
     steps:
       - name: Prepare the container
@@ -73,7 +79,7 @@ jobs:
             cp apple-parts/debs/bande-system_*.deb generic-debs/
             export LOCAL_DEBS=$PWD/generic-debs
           fi
-          ./build.sh "${{ matrix.target }}" archive-key.asc out
+          SUITE=${{ matrix.suite }} ./build.sh "${{ matrix.target }}" archive-key.asc out
       - name: Sign the installer data with the archive key
         if: matrix.target == 'apple'
         env:
@@ -90,10 +96,10 @@ jobs:
           rm -rf "$GNUPGHOME"
       - name: Prove install and first start in QEMU
         if: matrix.target != 'apple'
-        run: ./vm-test.py "${{ matrix.arch }}" out/bande-debian-forky-${{ matrix.target }}.img vm
+        run: ./vm-test.py "${{ matrix.arch }}" out/bande-debian-${{ matrix.suite }}-${{ matrix.target }}.img vm
       - uses: actions/upload-artifact@v7
         with:
-          name: image-${{ matrix.target }}
+          name: image-${{ matrix.suite }}-${{ matrix.target }}
           path: |
             out/*.img
             out/*.zip

@@ -21,7 +21,7 @@ echo btrfs >> "$root/etc/initramfs-tools/modules"
 [ "$IMAGE_TARGET" = apple ] || echo virtio_gpu >> "$root/etc/initramfs-tools/modules"
 
 install -D -m 644 "$WORK/archive.gpg" "$root/etc/apt/keyrings/bande-image.gpg"
-echo "deb [signed-by=/etc/apt/keyrings/bande-image.gpg] $ARCHIVE forky main" > "$root/etc/apt/sources.list.d/bande-image.list"
+echo "deb [signed-by=/etc/apt/keyrings/bande-image.gpg] $ARCHIVE $SUITE main" > "$root/etc/apt/sources.list.d/bande-image.list"
 mkdir -p "$root/tmp/local"
 cp -a "$WORK/local/." "$root/tmp/local/"
 chroot "$root" sh -c 'apt-get update -qq && apt-get install -y --no-install-recommends bande-archive-keyring bande-apt-source'

@@ -5,7 +5,7 @@ as the USB installer, the recovery environment and the source for reinstalling. 
 
 | Path | What it is |
 |---|---|
-| `build.sh` | builds an image with mmdebstrap from Debian forky (with forky-updates and forky-security) and the Bande APT archive: `apple`, `generic-arm64` or `generic-amd64` |
+| `build.sh` | builds an image with mmdebstrap from the Debian release `SUITE` (default forky, with its -updates and -security) and that suite of the Bande APT archive; CI builds one per suite in the archive's `conf/suites`: `apple`, `generic-arm64` or `generic-amd64` |
 | `customize.sh` | the mmdebstrap customize hook: installs the desktop, the kernel and the machine's packages |
 | `mkusb.sh` | packs the generic targets as a bootable GPT disk image for a USB stick or a VM |
 | `apple-parts.sh` | builds what the `apple` target takes from outside the archive: unboot, U-Boot, `bande-scripts`, `bande-nvram` |

@@ -67,7 +67,7 @@ pipewire,pipewire-pulse,pipewire-alsa,wireplumber,rtkit,alsa-utils,
 bluez,libspa-0.2-bluetooth,packagekit,fonts-noto-core,accountsservice,
 fuse3,cifs-utils,smbclient,sshfs,davfs2,go-mtpfs,gphotofs,libmtp-common"
 
-env -u UNBOOT -u U_BOOT -u SOURCE -u TARGET -u CONFIG -u DTBS WORK="$work" HERE="$here" IMAGE_TARGET="$target" ARCHIVE="$ARCHIVE" EXTRA="$extra" \
+env -u UNBOOT -u U_BOOT -u SOURCE -u TARGET -u CONFIG -u DTBS WORK="$work" HERE="$here" IMAGE_TARGET="$target" ARCHIVE="$ARCHIVE" SUITE="$SUITE" EXTRA="$extra" \
 mmdebstrap --variant=minbase --arch="$arch" --mode=root --format=directory \
     --components=main,non-free-firmware \
     --include="$(echo "$packages" | tr -d '\n')" \
